@@ -23,5 +23,17 @@ final class SampleTrip {
             new Lot("대안 B · 시연 주차장", "민영 예시", false, null, EvEntry.UNKNOWN,
                     new Tariff(30, 1000, 0, ""), null, "요금: 가상 시연값 · 높이와 입구 정보 없음"));
 
+    /** Explicit fixture: no SDK calls and no claim that guidance started. */
+    static final class SimulatedNavigation implements NavigationPort {
+        private java.util.function.Consumer<Destination> listener;
+        public void setDestinationListener(java.util.function.Consumer<Destination> listener) {
+            this.listener = listener;
+        }
+        void start() { listener.accept(new Destination("coex-demo", VISIT, LOTS, null)); }
+        public Result requestEntrance(long requestId, RouteRequest request) {
+            return Result.SIMULATED;
+        }
+    }
+
     private SampleTrip() {}
 }
