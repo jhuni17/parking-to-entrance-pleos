@@ -279,3 +279,16 @@ Windows 설치·화면·실제 SDK 콜백·실제 차량 신호·실차·음성�
 기준 `56d0700dad90011dda99dcb69ef0488f3dc1306f` 대비 작업 트리의 공백·전체 diff·신규 테스트 포함 지정 6개 editPaths 제한을 로컬 확인한다. 새 커밋이 없으므로 같은 기준의 최종 HEAD 범위 검사와 새 SHA 아티팩트 증명은 대기다. README 증거 계약·주행 제한·서명·권한·의존성·워크플로·게시 설정은 변경하지 않는다.
 
 Windows 설치·화면·실제 SDK 콜백·실제 차량 신호·실차·음성·음향·공개 배포 관측 증거는 없다. 합성 검증·unsigned CI·실제 런타임 관측·제출 완료는 별도 단계다. 1차 필수 제안서·서명 동의서 확보, 선택 프로토타입·적격 GitHub/APK, 최종 PT 필수 작동 앱 시연의 구분을 유지하며 이번 작업은 제출·시연 완료를 뜻하지 않는다.
+
+
+### 차량 조회 대기 상한 (2026-11-09 소스·합성 검증 설계)
+
+최초 조회부터 최대 한 번의 재시도까지 **3000ms 앱 내부 대기 정책**을 공유한다. `Session.start`에 전달한 단조 시각으로 마감을 한 번 정하고 `Handler`와 동일한 `SystemClock.uptimeMillis()`로 예약·결과 수용·재시도 시작을 검사한다. 첫 미연결 결과에만 500ms 뒤 재시도를 예약하며 마감은 연장하지 않는다. 2800ms에 첫 미연결 결과가 오면 3000ms 만료가 먼저여서 추가 읽기는 없고, 100ms에 오면 600ms에 두 번째 읽기를 시작해도 마감은 3000ms다. 두 번째 결과가 마감 전에 반환되면 그 결과로 종료한다. 어느 읽기든 반환되지 않으면 마감에 UI 대기를 종료한다. 마감 이상 시각의 결과는 만료로 처리하며, 완료·만료·화면 종료 뒤 오래된 반환값과 타이머는 무시한다.
+
+무응답 만료 후 높이·너비는 null, 연료는 `NEEDS_CHECK`이고 요청 가능 후보는 0곳이다. `readingVehicle`을 해제하고 `refresh`하여 후보 상세와 기존 **총높이 보완**을 열 수 있다. 첫 화면에 설정·차량값·출처를 추가하지 않는다. 상세에서 사용자 직접 확인 총높이 1850mm를 적용하면 연료 미확인은 유지되고, 120분·할인 미적용에서 대안 A만 6,000원으로 요청 가능하다. 만료·입력·계산·선택은 요청을 발생시키지 않는다. 확인 후 원래 방문지와 시연 입구 37.51400, 127.06100으로 한 번 요청하며, 거절은 실패이고 중복 확인은 추가 요청하지 않는다. 연료 미확인과 시설의 명시적 입차 제한은 구별한다.
+
+`VehicleReadResultTest`의 가짜 시계·읽기·스케줄러는 sleep이나 Android 런타임 없이 공유 Session을 실행한다. `noResponseExpiresOnceAtFixedDeadlineAndLateResultsAreIgnored`는 2999/3000ms·중복 만료·늦은 결과, `retrySharesDeadlineWhetherFirstResponseIsEarlyOrLate`는 1/2회 읽기와 고정 마감, `deadlineResultsExpireAndOldEventsCannotAffectReplacement` 및 기존 세션 테스트는 이벤트 순서·세션 교체를 검사한다. `hardwareBeforeDeadlineKeepsRecommendationsAfterExpiryEvent`는 합성 AAOS 1850mm·비전기차의 코엑스 12,000원 우선/요청 가능 2곳과 2250mm의 대안 A 6,000원 우선/코엑스 제한/요청 가능 1곳을 검사한다. `expiredUnknownCanSupplementHeightAndOnlyConfirmRequestsEntrance`는 만료부터 보완·확인·거절까지 연결한다. 연결됐지만 속성이 누락되면 즉시 종료하며 재시도하지 않는 기존 검사도 유지한다.
+
+이 정책은 API 호출을 강제 종료하거나 단일 executor의 막힌 읽기를 해제하지 않는다. UI 대기와 결과 수용의 상한이며 실제 Pleos 응답시간의 관측값이 아니다. 이 변경의 로컬 환경에는 Java·javac·Gradle 및 Android SDK가 확인되지 않아 JVM 테스트와 unsigned APK 빌드는 미실행이다. 새 커밋은 만들지 않았으며 새 후보의 기존 GitHub Actions 검증은 대기다. 새 전체 SHA와 `source-sha.txt`, `pleos-build-<full SHA>`, XML(실패·오류·건너뜀 모두 0), Gradle 로그, 입력 해시, unsigned APK를 결합해 검증해야 한다. README의 두 `sha256sum` 검사와 기존 패키지·ZIP·unsigned 검사 및 기준 SHA `a3f71cfb6e189a47fc8ebbe862c7247e01eeeb23` 대비 전체 diff도 필요하다. 기준 후보 성공은 새 후보 증거가 아니다.
+
+이는 합성 검증 설계와 소스 변경이며 Windows 에뮬레이터·실제 SDK 콜백·실차·음성·음향의 실행 증거는 미확보다. 1차 필수 제안서·서명 동의서, 선택 프로토타입·적격 GitHub/APK, 최종 PT 작동 시연의 제출 단계 구분은 유지한다.

@@ -10,6 +10,7 @@ import android.graphics.drawable.RippleDrawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
@@ -39,6 +40,7 @@ public final class MainActivity extends Activity {
     private final Handler vehicleHandler = new Handler(Looper.getMainLooper());
     private final VehicleReadResult.Session vehicleSession = new VehicleReadResult.Session();
     private Runnable pendingVehicleRetry;
+    private Runnable pendingVehicleExpiry;
     private boolean readingVehicle;
     private Priority priority = Priority.ATTACHED_FIRST;
     private VisitQuoteState quote = new VisitQuoteState(120);
@@ -115,32 +117,53 @@ public final class MainActivity extends Activity {
         refresh();
         vehicleHandler.removeCallbacksAndMessages(null);
         pendingVehicleRetry = null;
-        vehicleSession.start(generation);
+        vehicleSession.start(generation, SystemClock.uptimeMillis());
+        pendingVehicleExpiry = () -> {
+            if (isDestroyed()) return;
+            if (vehicleSession.expire(generation, SystemClock.uptimeMillis())
+                    == VehicleReadResult.Session.Action.EXPIRE) finishVehicleRead(VehicleProfile.UNKNOWN);
+        };
+        vehicleHandler.postAtTime(pendingVehicleExpiry, vehicleSession.deadline());
         readVehicle(generation, 0);
     }
 
     private void readVehicle(int generation, int attempt) {
         if (!vehicleSession.isCurrent(generation) || isDestroyed()) return;
+        if (vehicleSession.expire(generation, SystemClock.uptimeMillis())
+                == VehicleReadResult.Session.Action.EXPIRE) {
+            finishVehicleRead(VehicleProfile.UNKNOWN);
+            return;
+        }
         var context = getApplicationContext();
         carReader.execute(() -> {
             VehicleReadResult result = AndroidVehicleInfo.read(context);
             vehicleHandler.post(() -> {
                 if (generation != readGeneration || isDestroyed()) return;
-                VehicleReadResult.Session.Action action = vehicleSession.accept(generation, attempt, result);
+                VehicleReadResult.Session.Action action = vehicleSession.accept(generation, attempt, result, SystemClock.uptimeMillis());
                 if (action == VehicleReadResult.Session.Action.IGNORE) return;
                 if (action == VehicleReadResult.Session.Action.RETRY) {
                     pendingVehicleRetry = () -> {
+                        if (!vehicleSession.isCurrent(generation) || isDestroyed()) return;
                         pendingVehicleRetry = null;
                         readVehicle(generation, 1);
                     };
                     vehicleHandler.postDelayed(pendingVehicleRetry, VehicleReadResult.Session.RETRY_DELAY_MS);
                     return;
                 }
-                vehicle = result.profile();
-                readingVehicle = false;
-                refresh();
+                finishVehicleRead(action == VehicleReadResult.Session.Action.EXPIRE
+                        ? VehicleProfile.UNKNOWN : result.profile());
             });
         });
+    }
+
+    private void finishVehicleRead(VehicleProfile profile) {
+        if (pendingVehicleRetry != null) vehicleHandler.removeCallbacks(pendingVehicleRetry);
+        if (pendingVehicleExpiry != null) vehicleHandler.removeCallbacks(pendingVehicleExpiry);
+        pendingVehicleRetry = null;
+        pendingVehicleExpiry = null;
+        vehicle = profile;
+        readingVehicle = false;
+        refresh();
     }
 
     private void stopVehicleRead() {
@@ -149,6 +172,7 @@ public final class MainActivity extends Activity {
         vehicleSession.stop();
         vehicleHandler.removeCallbacksAndMessages(null);
         pendingVehicleRetry = null;
+        pendingVehicleExpiry = null;
         readingVehicle = false;
     }
 
