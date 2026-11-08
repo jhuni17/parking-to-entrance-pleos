@@ -49,6 +49,10 @@ final class ParkingPlan {
 
     record Lot(String name, String type, boolean attached, Integer heightLimitMm,
                EvEntry evEntry, Tariff tariff, Entrance entrance, String provenance, WidthCondition widthCondition) {
+        Lot {
+            // Missing facility policy is uncertainty, never permission to enter.
+            evEntry = evEntry == null ? EvEntry.UNKNOWN : evEntry;
+        }
         Lot(String name, String type, boolean attached, Integer heightLimitMm,
             EvEntry evEntry, Tariff tariff, Entrance entrance, String provenance) {
             this(name, type, attached, heightLimitMm, evEntry, tariff, entrance, provenance, null);

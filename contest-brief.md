@@ -314,3 +314,28 @@ Windows 설치·화면·실제 SDK 콜백·실제 차량 신호·실차·음성�
 이 정책은 API 호출을 강제 종료하거나 단일 executor의 막힌 읽기를 해제하지 않는다. UI 대기와 결과 수용의 상한이며 실제 Pleos 응답시간의 관측값이 아니다. 이 변경의 로컬 환경에는 Java·javac·Gradle 및 Android SDK가 확인되지 않아 JVM 테스트와 unsigned APK 빌드는 미실행이다. 새 커밋은 만들지 않았으며 새 후보의 기존 GitHub Actions 검증은 대기다. 새 전체 SHA와 `source-sha.txt`, `pleos-build-<full SHA>`, XML(실패·오류·건너뜀 모두 0), Gradle 로그, 입력 해시, unsigned APK를 결합해 검증해야 한다. README의 두 `sha256sum` 검사와 기존 패키지·ZIP·unsigned 검사 및 기준 SHA `a3f71cfb6e189a47fc8ebbe862c7247e01eeeb23` 대비 전체 diff도 필요하다. 기준 후보 성공은 새 후보 증거가 아니다.
 
 이는 합성 검증 설계와 소스 변경이며 Windows 에뮬레이터·실제 SDK 콜백·실차·음성·음향의 실행 증거는 미확보다. 1차 필수 제안서·서명 동의서, 선택 프로토타입·적격 GitHub/APK, 최종 PT 작동 시연의 제출 단계 구분은 유지한다.
+
+
+### 전기차 정책 누락 — ev-null (소스 대조일 2026-11-09)
+
+`EvPolicyFallbackTest`는 합성 AAOS 연료 입력을 `VehicleProfile.fromHardware`부터 후보 계산·설명·EntranceConfirmation·fake 내비까지 연결한다. 실제 시설 정책 변경이나 SDK 수신 관측이 아니다. 현재 화면에는 시설의 전기차 정책을 주입하는 UI가 없다. 코엑스 복사본의 **전기차 정책만 null**로 바꾸며 높이·요금·입구·출처는 유지한다. 기존 공개 출처와 확인일은 SampleTrip 및 README 기록을 유지하며 외부 재확인은 하지 않았다.
+
+| 합성 조건 | 기대 사용자 결과 / assertion |
+| --- | --- |
+| 높이 1850mm·정상 입구·차폭 조건 미등록·120분·구매 할인 충족 가정·NON_ELECTRIC | 부설 우선·요금 우선 모두 코엑스 0원 우선, 요청 가능 2곳 |
+| 연료만 ELECTRIC으로 전환 | 두 기준 모두 대안 A 6,000원 우선, 요청 가능 1곳. 코엑스는 NEEDS_CHECK·요청 불가이며 기본 12,000원·계산된 예상 0원 유지 |
+| 대안 설명 | ‘코엑스 지하주차장 · 전기차 입차 조건 미확인’. 누락을 입차 금지로 표현하지 않음 |
+| 모든 후보 정책 null·ELECTRIC | 요청 가능 0곳, routeRequest·navigation.select·EntranceConfirmation.create 모두 비어 있음 |
+| 독립 높이 초과·차폭 초과·명시적 전기차 제한 | 각각 RESTRICTED 유지. 입구 누락·좌표 오류도 별도 목록에서 선택·요청 차단 |
+
+Lot의 두 생성자 모두 공통 record 생성 경계를 지나 null을 UNKNOWN으로 저장한다. ALLOWED·RESTRICTED·UNKNOWN은 그대로 보존한다. 높이 1850mm·정상 입구·차폭 조건 미등록의 정책 행렬에서 ELECTRIC은 ALLOWED만 요청 가능하고 null·UNKNOWN은 NEEDS_CHECK, RESTRICTED는 RESTRICTED다. 연료 누락·빈 배열·미확인 값·혼합 입력은 차량 NEEDS_CHECK를 유지하며 ALLOWED 시설만 요청 가능하다. NON_ELECTRIC은 전기차 정책만으로 차단하지 않는다.
+
+비전기차 선택은 차량 조건 갱신에 대응하는 invalidateSelections 후 STALE이고 요청 0건이다. 전기차 계산·설명·대안 선택·확인창 생성까지도 0건이며 새 대안 A 확인만 원래 방문지 ‘스타필드 코엑스몰’과 시연 입구 37.51400, 127.06100으로 정확히 1건 요청한다. 되울림은 원래 방문지를 보존하고 중복 확인은 추가 요청하지 않는다. REJECTED와 예외는 실패 receipt로 기록한다. 기존 MainActivity의 이유 `setSingleLine(true)`와 상세의 차량값·출처·시설 provenance 경로는 유지한다.
+
+신규 네 테스트는 기존 `app/src/test/java`에 있어 `testPleosDebugUnitTest` 대상이다. 생성자·정책 행렬·전환 통합·독립 차단 assertion을 기존 ParkingPlanTest, ParkingNavigationTest, EntranceConfirmationTest, VehicleWidthTest, EntranceCoordinateTest와 소스로 대조했다. 로컬 PATH에 Java·javac·Gradle이 없고 Android SDK도 확인되지 않아 JVM 테스트·unsigned APK 빌드는 미실행이다. 도구 설치·네트워크·자격 증명·CI 호출·커밋·푸시는 수행하지 않았다. 정적 검사는 실행 통과 증거가 아니다.
+
+Oracle의 새 후보 커밋 후 기존 GitHub Actions에서 새 전체 SHA에 결합된 `testPleosDebugUnitTest`·`assemblePleosDebug` 성공, 기존·신규 XML의 실패·오류·건너뜀 모두 0을 확인해야 한다. `source-sha.txt` 및 `pleos-build-<full SHA>` 일치, Gradle 로그·입력 해시·unsigned APK, README의 `sha256sum -c apk-sha256.txt` 및 동일 SHA 체크아웃의 `sha256sum -c /path/to/input-sha256.txt`, 기존 APK 패키지·ZIP·unsigned 검사도 대기다. 기준 후보 성공으로 새 후보 증거를 대신하지 않는다.
+
+기준 `041e2cb4bfbf97916813a56adeac2bbd294c39a8` 대비 작업 트리의 공백·전체 diff·신규 테스트 포함 네 editPaths 제한을 로컬 확인한다. 새 커밋이 없으므로 `git diff --check 041e2cb4bfbf97916813a56adeac2bbd294c39a8 HEAD`와 같은 범위 파일 제한·전체 diff의 새 후보 검증은 대기다. README 증거 계약·주행 제한·서명·권한·의존성·워크플로·게시 설정은 변경하지 않는다.
+
+Windows 설치·화면·실제 SDK 콜백·차량 신호·실차·음성·음향·공개 배포 관측 증거는 없다. 합성 assertion·unsigned CI·실제 런타임·제출 완료는 별도 단계다. 1차 필수 제안서·서명 동의서 확보, 선택 프로토타입·적격 GitHub/APK, 최종 PT 필수 작동 앱 시연의 구분을 유지하며 이번 작업은 제출·시연 완료를 뜻하지 않는다.
