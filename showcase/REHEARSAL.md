@@ -56,6 +56,13 @@ Windows 에뮬레이터 설치·화면·실제 Pleos SDK 콜백·차량 신호·
 
 사용자 재조회는 **종료 후 명시적으로 시작하는 새 조회**다. 기존 자동 재시도는 각 조회의 첫 미연결 결과에만 500ms 뒤 최대 한 번이며 시작부터 3000ms 마감을 연장하지 않는다. 진행 중 반복 시작은 세대·마감·읽기 예약을 늘리지 않는다. 만료는 UNKNOWN으로 종료하며 이전 세대 결과·재시도·만료 및 화면 종료 후 콜백은 무시한다. 단일 실행기와 AndroidVehicleInfo.read를 유지한다. 이 정책은 막힌 API 호출의 강제 종료, 실행기 해제 또는 실제 서비스 회복을 보장하지 않는다.
 
+실행 대기 정책(2026-11-09 소스 확인): `VehicleReadTask`는 reader 진입 직전 취소·단조 시각 마감을 검사하고 같은 작업을 한 번만 실행한다. 새 조회·종료·onStop은 보관한 작업을 취소한다. 이미 시작된 API 호출을 강제 종료하지 않으며 단일 실행기를 유지한다. 실제 서비스 회복 보장은 아니다.
+
+`VehicleReadTaskTest`의 합성 복구 사례(실행 결과는 새 후보 CI 확인 대기): 같은 방문·120분·구매 할인 가정에서 초기 1850mm·NON_ELECTRIC의 코엑스 0원 선택은 재조회 시작 시 STALE이다. 100ms에 시작한 느린 읽기가 실행기를 점유한다. 3100ms 만료 후 중간 조회를 예약하고, 6100ms에 중간 조회도 만료시킨 뒤 최신 조회를 예약한다. 첫 읽기가 6200ms에 반환하면 이전 결과는 무시되고 중간 reader는 0회, 최신 reader는 1회 진입해 6300ms에 2250mm·NON_ELECTRIC으로 완료한다. 최신 세대 마감은 9100ms다. 두 추천 기준 모두 코엑스 RESTRICTED·대안 A 6,000원·요청 가능 1곳이다. 복구·선택까지 fake 요청은 0건, 새 대안의 명시적 확인만 원래 방문지와 시연 좌표 37.51400, 127.06100으로 1건 요청하며 중복 확인은 차단한다.
+
+독립 작업은 마감 3000ms에 대해 2999ms 시작만 reader 1회, 3000/3001ms 또는 시작 전 취소는 0회다. 대기 중 재시도도 마감 후 reader 0회이며 기존 만료 처리가 UNKNOWN·EXPIRED로 종료한다. 합성 assertion은 Android Handler·SDK 런타임 관측이 아니다. 새 커밋의 전체 XML 실제 총수와 실패·오류·건너뜀 각 0, unsigned debug APK·입력 해시·Gradle 로그·README 해시 계약은 기존 GitHub Actions에서 검증해야 한다. 기존 139건 결과로 대체하지 않는다. Windows 실행·실제 서비스·최종 제출 단계의 증거는 별도로 미확인이다. 첫 화면 구성·상세의 차량값과 출처·최대 한 줄 대안 이유는 유지한다.
+
+
 **작성 당시 기록(아래 대기·미실행·새 커밋 없음 및 경로 제한은 해당 기능 작성 시점에 한정).** 현행 기준 후보의 보고된 실행 결과와 이후 변경의 검증 요구는 [후보별 검증 상태](../contest-brief.md#후보별-검증-상태)를 따른다. 로컬 PATH에서 Java·javac·Gradle을 찾지 못했고 Android SDK도 확인되지 않아 `testPleosDebugUnitTest`·`assemblePleosDebug`는 미실행이다. 소스/assertion 대조와 작업 트리 `git diff --check`는 실행 테스트 증거가 아니다. 커밋·푸시·네트워크·자격 증명·CI 변경·도구 설치는 하지 않는다. Oracle의 새 후보 커밋 후 기존 GitHub Actions에서 **새 전체 SHA**의 source-sha.txt 및 pleos-build-<full SHA> 일치, VehicleReadExplanationTest 포함 기존·신규 전체 XML의 실패·오류·건너뜀 모두 0, Gradle 로그·입력 해시·unsigned APK를 확인해야 한다. README의 `sha256sum -c apk-sha256.txt` 및 동일 SHA 체크아웃의 `sha256sum -c /path/to/input-sha256.txt`, 기존 패키지·ZIP·unsigned 검사도 대기다. 기준 `5bb17b10e0866087e09c57a270f31561d4e3806d` 대비 새 HEAD 전체 diff·공백 검사·지정 여섯 editPaths 제한은 새 커밋에서 확인해야 하며 기준 후보 성공으로 대체하지 않는다.
 
 Windows 설치·화면·실제 SDK 콜백·차량 신호·실차·음성·음향 증거는 없다. 합성 검증 설계·unsigned CI·실제 런타임·제출 완료를 구분한다. 1차 필수 제안서·서명 동의서, 선택 프로토타입·적격 GitHub/APK, 최종 PT 필수 작동 앱 시연은 별도 준비 대상이며 이번 구현은 제출 완료를 뜻하지 않는다.

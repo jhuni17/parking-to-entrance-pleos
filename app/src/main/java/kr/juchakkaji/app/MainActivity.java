@@ -37,6 +37,7 @@ public final class MainActivity extends Activity {
     private final VehicleHeight totalHeight = new VehicleHeight();
     private final Handler vehicleHandler = new Handler(Looper.getMainLooper());
     private final VehicleRefreshState vehicleState = new VehicleRefreshState();
+    private VehicleReadTask pendingVehicleTask;
     private Runnable pendingVehicleRetry;
     private Runnable pendingVehicleExpiry;
     private Priority priority = Priority.ATTACHED_FIRST;
@@ -115,6 +116,7 @@ public final class MainActivity extends Activity {
     private void startVehicleRead() {
         if (!vehicleState.start(SystemClock.uptimeMillis())) return;
         int generation = vehicleState.generation();
+        cancelVehicleTask();
         // UNKNOWN + refresh immediately expires every previously opened selection.
         refresh();
         vehicleHandler.removeCallbacksAndMessages(null);
@@ -137,8 +139,8 @@ public final class MainActivity extends Activity {
         }
         if (!vehicleState.beginRead(generation, attempt)) return;
         var context = getApplicationContext();
-        carReader.execute(() -> {
-            VehicleReadResult result = AndroidVehicleInfo.read(context);
+        cancelVehicleTask();
+        pendingVehicleTask = new VehicleReadTask(() -> AndroidVehicleInfo.read(context), result ->
             vehicleHandler.post(() -> {
                 if (isDestroyed()) return;
                 VehicleReadResult.Session.Action action = vehicleState.accept(generation, attempt, result, SystemClock.uptimeMillis());
@@ -153,11 +155,17 @@ public final class MainActivity extends Activity {
                     return;
                 }
                 finishVehicleRead();
-            });
-        });
+            }), SystemClock::uptimeMillis, vehicleState.deadline());
+        carReader.execute(pendingVehicleTask);
+    }
+
+    private void cancelVehicleTask() {
+        if (pendingVehicleTask != null) pendingVehicleTask.cancel();
+        pendingVehicleTask = null;
     }
 
     private void finishVehicleRead() {
+        cancelVehicleTask();
         if (pendingVehicleRetry != null) vehicleHandler.removeCallbacks(pendingVehicleRetry);
         if (pendingVehicleExpiry != null) vehicleHandler.removeCallbacks(pendingVehicleExpiry);
         pendingVehicleRetry = null;
@@ -166,6 +174,7 @@ public final class MainActivity extends Activity {
     }
 
     private void stopVehicleRead() {
+        cancelVehicleTask();
         totalHeight.stop();
         vehicleState.stop();
         vehicleHandler.removeCallbacksAndMessages(null);
