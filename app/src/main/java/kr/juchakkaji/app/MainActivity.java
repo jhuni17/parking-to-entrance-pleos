@@ -307,9 +307,7 @@ public final class MainActivity extends Activity {
                 + "\n" + option.vehicleFitDetails()
                 + "\n사용자 선택: " + (option.excluded() ? "이번 방문 제외" : "제외 없음")
                 + "\n" + option.requestAvailability().reason() + "\n\n" + lot.provenance();
-        if (lot.tariff() != null) {
-            text += "\n" + lot.tariff().discountText(quote.purchaseDiscount());
-        }
+        text += "\n" + FareDetails.create(option, quote.stayMinutes(), quote.purchaseDiscount()).message();
         LinearLayout body = column();
         body.setPadding(dp(24), dp(8), dp(24), 0);
         body.addView(label(text, 16, 400, ink));
