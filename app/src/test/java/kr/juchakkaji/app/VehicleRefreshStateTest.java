@@ -170,7 +170,10 @@ public final class VehicleRefreshStateTest {
             assertSame(SampleTrip.LOTS.get(1), s.options().get(0).lot());
             assertEquals(Integer.valueOf(6000), s.options().get(0).expectedWon());
             assertTrue(s.explanation().cardHeadline().contains("이번 방문 제외"));
-            s.stop(); s.onStart(); assertNull(s.height.confirmedMm());
+            s.stop(); s.onStart(); assertEquals(Integer.valueOf(1900), s.height.confirmedMm());
+            assertEquals(priority, s.priority);
+            assertEquals(120, s.quote.stayMinutes()); assertTrue(s.quote.purchaseDiscount());
+            assertNull(new Screen(priority).height.confirmedMm());
             s.complete(hardware(1850, false)); assertTrue(s.coex().excluded());
             s.fake.visit("new visit", SampleTrip.LOTS);
             assertFalse(s.coex().excluded()); assertFalse(s.quote.purchaseDiscount());
@@ -206,6 +209,10 @@ public final class VehicleRefreshStateTest {
         assertEquals(60, s.quote.stayMinutes()); assertFalse(s.quote.purchaseDiscount());
         assertEquals(Priority.FARE_FIRST, s.priority);
         assertEquals(heightSession, s.height.session());
+        s.stop(); s.onStart(); s.complete(hardware(1850, false));
+        assertNotEquals(heightSession, s.height.session());
+        assertEquals(60, s.quote.stayMinutes()); assertFalse(s.quote.purchaseDiscount());
+        assertEquals(Priority.FARE_FIRST, s.priority);
         assertEquals(Integer.valueOf(2250), s.height.confirmedMm());
         assertEquals(Integer.valueOf(3000), s.options().get(0).expectedWon());
         assertEquals(Fit.RESTRICTED, s.coex().fit());
@@ -214,7 +221,9 @@ public final class VehicleRefreshStateTest {
     @Test public void rejectedAndThrowingNavigationRemainFailuresAfterRefresh() {
         for (boolean throwsFailure : new boolean[]{false, true}) {
             var s = new Screen(Priority.FARE_FIRST);
-            s.complete(VehicleReadResult.unavailable()); s.start(); s.complete(hardware(2250, false));
+            s.complete(hardware(1850, false));
+            assertTrue(s.height.apply(s.height.session(), "2250"));
+            s.refresh(); s.stop(); s.onStart(); s.complete(hardware(1850, false));
             var preview = EntranceConfirmation.create(s.nav, s.options().get(0), 120, true).orElseThrow();
             s.fake.result = NavigationPort.Result.REJECTED; s.fake.throwsFailure = throwsFailure;
             assertTrue(s.fake.requests.isEmpty());
@@ -224,4 +233,103 @@ public final class VehicleRefreshStateTest {
             assertEquals(1, s.fake.requests.size());
         }
     }
+    @Test public void sameScreenReturnKeepsRoofHeightAcrossFreshReadFailureAndExpiry() {
+        for (Priority priority : Priority.values()) for (int scenario = 0; scenario < 4; scenario++) {
+            var s = new Screen(priority);
+            s.complete(hardware(1850, false));
+            assertEquals(VehicleProfile.DriveType.NON_ELECTRIC, s.state.vehicle().drive());
+            assertTrue(s.height.apply(s.height.session(), "2250"));
+            s.refresh(); // MainActivity's successful height apply calls refresh.
+            var oldOption = s.options().get(0);
+            var oldSelection = s.nav.select(oldOption).orElseThrow();
+            var visit = s.nav.visit();
+            int oldRead = s.state.generation();
+            Runnable oldExpiry = s.expiry;
+            s.stop(); s.onStart();
+            assertTrue(s.state.reading());
+            assertTrue(s.nav.select(oldOption).isEmpty());
+            assertEquals(ParkingNavigation.Status.STALE, s.nav.confirm(oldSelection));
+            s.deliver(oldRead, 0, hardware(1000, true));
+            oldExpiry.run();
+            assertTrue(s.state.reading());
+            assertEquals(VehicleProfile.UNKNOWN, s.state.vehicle());
+            if (scenario == 0) s.complete(hardware(1850, false));
+            else if (scenario == 1) s.complete(hardware(2600, false));
+            else if (scenario == 2) s.complete(VehicleReadResult.unavailable());
+            else { s.now = 3000; s.expiry.run(); }
+            var original = s.state.vehicle();
+            assertFalse(s.state.reading());
+            assertEquals(Integer.valueOf(2250), s.height.confirmedMm());
+            assertEquals(Integer.valueOf(scenario == 1 ? 2600 : 2250), s.height.effectiveMm(original));
+            assertEquals(scenario < 2 ? Integer.valueOf(scenario == 1 ? 2600 : 1850) : null, original.heightMm());
+            assertEquals(scenario < 2 ? VehicleProfile.DriveType.NON_ELECTRIC : VehicleProfile.DriveType.NEEDS_CHECK, original.drive());
+            assertEquals(Fit.RESTRICTED, s.coex().fit());
+            assertFalse(s.coex().requestAvailability().available());
+            assertTrue(s.nav.select(s.coex()).isEmpty());
+            assertEquals(scenario == 1 ? 0 : 1, requestableCount(s.options()));
+            String details = s.explanation().vehicleDetails();
+            assertTrue(details.contains("사용자 확인 총높이 2250mm · 사용자 직접 확인값"));
+            assertTrue(details.contains("판단 적용 높이 " + (scenario == 1 ? 2600 : 2250) + "mm"));
+            if (scenario < 2) assertTrue(details.contains(original.heightMm() + "mm · 차량 속성값"));
+            else {
+                assertTrue(details.contains("차량 높이 확인 필요"));
+                assertTrue(details.contains("연료 유형 확인 필요"));
+            }
+            s.now = 6000; oldExpiry.run();
+            s.deliver(oldRead, 0, hardware(1000, true));
+            assertSame(original, s.state.vehicle());
+            assertSame(visit, s.nav.visit());
+            assertEquals(priority, s.priority);
+            assertEquals(120, s.quote.stayMinutes()); assertTrue(s.quote.purchaseDiscount());
+            assertTrue(s.fake.requests.isEmpty());
+            if (scenario == 1) continue;
+            var alternative = s.options().get(0);
+            assertSame(SampleTrip.LOTS.get(1), alternative.lot());
+            assertEquals(Integer.valueOf(6000), alternative.expectedWon());
+            var preview = EntranceConfirmation.create(s.nav, alternative, 120, true).orElseThrow();
+            assertTrue(s.fake.requests.isEmpty());
+            s.fake.result = NavigationPort.Result.SIMULATED;
+            assertEquals(ParkingNavigation.Status.SIMULATED, s.nav.confirm(preview.selection()));
+            assertEquals(ParkingNavigation.Status.SIMULATED, s.nav.lastRequest().outcome());
+            assertEquals(ParkingNavigation.Status.STALE, s.nav.confirm(preview.selection()));
+            assertEquals(1, s.fake.requests.size());
+            assertEquals(SampleTrip.VISIT, s.fake.requests.get(0).visit());
+            assertEquals(37.51400, s.fake.requests.get(0).entrance().latitude(), 0);
+            assertEquals(127.06100, s.fake.requests.get(0).entrance().longitude(), 0);
+            if (scenario == 0) {
+                assertTrue(s.height.clear(s.height.session()));
+                s.refresh();
+                assertNull(s.height.confirmedMm());
+                assertEquals(Integer.valueOf(1850), s.height.effectiveMm(original));
+                assertEquals(2, requestableCount(s.options()));
+                assertSame(SampleTrip.LOTS.get(0), s.options().get(0).lot());
+                assertEquals(Integer.valueOf(0), s.options().get(0).expectedWon());
+                assertEquals(1, s.fake.requests.size());
+            }
+        }
+    }
+
+    @Test public void returnRejectsPreviousDisconnectedRetryAndExpiry() {
+        var s = new Screen(Priority.ATTACHED_FIRST);
+        assertTrue(s.height.apply(s.height.session(), "2250")); s.refresh();
+        int old = s.state.generation();
+        s.complete(VehicleReadResult.disconnected());
+        Runnable retry = s.retry;
+        Runnable expiry = s.expiry;
+        s.stop(); s.now = 1000; s.onStart();
+        int current = s.state.generation();
+        int reads = s.reads;
+        retry.run();
+        s.now = 3000; expiry.run();
+        s.deliver(old, 1, hardware(1000, true));
+        assertEquals(reads, s.reads);
+        assertEquals(current, s.state.generation());
+        assertTrue(s.state.reading());
+        assertEquals(VehicleProfile.UNKNOWN, s.state.vehicle());
+        assertEquals(Integer.valueOf(2250), s.height.confirmedMm());
+        s.complete(hardware(1850, false));
+        assertEquals(1, requestableCount(s.options()));
+        assertTrue(s.fake.requests.isEmpty());
+    }
+
 }

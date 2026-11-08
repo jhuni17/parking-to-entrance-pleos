@@ -124,10 +124,34 @@ public final class VehicleHeightTest {
         assertFalse(height.apply(session, "1850"));
         assertFalse(height.clear(session));
         long next = height.start();
-        assertNull(height.confirmedMm());
-        assertNull(height.effectiveMm(VehicleProfile.UNKNOWN));
+        assertEquals(Integer.valueOf(4000), height.confirmedMm());
+        assertEquals(Integer.valueOf(4000), height.effectiveMm(VehicleProfile.UNKNOWN));
         assertFalse(height.apply(session, "2250"));
         assertFalse(height.clear(session));
         assertTrue(height.apply(next, "1850"));
     }
+    @Test public void repeatedReturnsRetainHeightButExpireEveryOldInputToken() {
+        VehicleHeight height = new VehicleHeight();
+        assertNull(height.confirmedMm());
+        long token = height.start();
+        assertTrue(height.apply(token, "2250"));
+        for (int i = 0; i < 3; i++) {
+            height.stop();
+            assertFalse(height.isCurrent(token));
+            assertFalse(height.apply(token, "1850"));
+            assertFalse(height.clear(token));
+            assertEquals(Integer.valueOf(2250), height.confirmedMm());
+            long next = height.start();
+            assertNotEquals(token, next);
+            assertTrue(height.isCurrent(next));
+            assertFalse(height.apply(token, "1850"));
+            assertFalse(height.clear(token));
+            assertEquals(Integer.valueOf(2250), height.confirmedMm());
+            token = next;
+        }
+        assertTrue(height.clear(token));
+        assertNull(height.confirmedMm());
+        assertNull(new VehicleHeight().confirmedMm());
+    }
+
 }

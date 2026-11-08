@@ -1,6 +1,6 @@
 package kr.juchakkaji.app;
 
-/** Screen-session input policy, independent of Android and of vehicle specifications. */
+/** Confirmed height lives with this object; input authority lives only for an active session. */
 final class VehicleHeight {
     private long generation;
     private boolean active;
@@ -9,7 +9,6 @@ final class VehicleHeight {
     long start() {
         generation++;
         active = true;
-        confirmedMm = null;
         return generation;
     }
 

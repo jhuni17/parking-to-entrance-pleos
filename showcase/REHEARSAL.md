@@ -2,7 +2,7 @@
 
 ## 상세에서 차량 정보 다시 확인 (2026-11-09 소스 대조)
 
-현행 절차: **최초 조회 종료(미확인 포함) → 시설 상세 → 차량 정보 다시 확인 → 새 결과에 따른 추천 갱신 → 상세에서 입구 선택·확인**. 조회 중에는 기존 ‘차량 정보 확인 중’ 표시와 카드 숨김을 사용한다. 차량값·출처는 상세에, 대안 이유는 최대 한 줄로 유지하며 원본 차량값 입력 UI는 없다. 상세 재조회는 Activity를 재시작하지 않는다. 같은 방문의 체류 시간·구매 할인 가정·추천 기준·사용자 제외·직접 확인 총높이를 유지한다. 실제 새 onStart는 총높이를 초기화하고, 새 방문은 할인·제외를 초기화하는 기존 정책을 유지한다.
+현행 절차: **최초 조회 종료(미확인 포함) → 시설 상세 → 차량 정보 다시 확인 → 새 결과에 따른 추천 갱신 → 상세에서 입구 선택·확인**. 조회 중에는 기존 ‘차량 정보 확인 중’ 표시와 카드 숨김을 사용한다. 차량값·출처는 상세에, 대안 이유는 최대 한 줄로 유지하며 원본 차량값 입력 UI는 없다. 상세 재조회는 Activity를 재시작하지 않는다. 같은 방문의 체류 시간·구매 할인 가정·추천 기준·사용자 제외·직접 확인 총높이를 유지한다. 같은 Activity의 stop→onStart 복귀는 확인 총높이를 유지하고 이전 입력창 토큰만 만료시킨다. 현재 토큰의 명시적 삭제는 보완값을 지우며 새 Activity는 미입력으로 시작한다. 새 방문은 할인·제외를 초기화하는 기존 정책을 유지한다.
 
 다음은 `VehicleRefreshStateTest`의 **합성 AAOS 기대값**이다. 실제 SDK 콜백 관측이나 실행 통과 기록이 아니다. `VehicleProfile.fromHardware` → 공유 `VehicleRefreshState` → 기존 후보 계산·설명 → `EntranceConfirmation` → fake 내비를 연결한다. 공통 조건은 동일 방문·120분·구매 할인 충족 가정·제외 없음이며, 부설 우선과 요금 우선 모두 검사한다.
 
@@ -175,7 +175,7 @@ Windows 에뮬레이터 설치·화면, 실제 Pleos 서비스 연결/속성 콜
 | 총높이 2200mm·NON_ELECTRIC | 코엑스 경계값 NEEDS_CHECK, 요청 불가 (같은 테스트) |
 | 정확한 HYUNDAI·IONIQ 5 N·2025 제원 1585mm → 확인 총높이 2250mm | 판단 2250mm, 원본 제조사 출처·URL과 사용자 직접 확인값을 별도 표시. 하드웨어 2400mm이면 사용자 2250mm보다 큰 2400mm 적용 (`catalogAndHigherHardwareKeepTheirOriginalSources`) |
 | 1000·4000 입력 / 빈값·0·음수·999·4001·소수·문자·정수 초과 입력 / 취소 | 경계 허용 / 미적용 / 기존값 유지 (`inputPolicyInvalidAndCancelledInputDoNotMutateAndSessionsExpire`, 적용·취소 리스너) |
-| 보완 후 화면 종료 → 새 onStart | 보완값 삭제 후 차량 재조회. 이전 세션 입력창 적용·삭제 차단. Bundle은 체류 시간만 저장하며 보완값 복원 없음 (같은 세션 테스트와 MainActivity 수명주기 대조) |
+| 보완 후 같은 Activity의 stop → onStart | 확인 총높이 유지 후 차량 재조회. 이전 입력창 토큰의 적용·삭제 차단. 현재 토큰으로 명시적 삭제 가능. 새 Activity는 새 객체이므로 미입력이며 Bundle에는 체류 시간만 저장 (VehicleHeightTest·VehicleRefreshStateTest 및 MainActivity 수명주기 소스 대조) |
 | 적용·설명 갱신 → 이전 선택 확인 → 새 대안 A 선택 확인 | 갱신 자체 요청 0건, 이전 선택 STALE. 새 선택 확인만 원래 방문지와 37.51400, 127.06100으로 1건. 중복 확인 추가 요청 없음. fake REJECTED는 실패로 기록 (`hardwareSupplementFlowsThroughExplanationAndConfirmedNavigation`) |
 
 원본 높이·기존 출처, 사용자 확인 총높이, 판단 적용 높이는 상세에만 구분한다. 첫 화면은 기존 대안 이유 최대 한 줄을 유지한다. 삭제·적용은 refresh에서 후보·설명을 함께 갱신하고 선택을 만료시킨다. 새 테스트는 기존과 같은 `app/src/test/java`에 있어 `testPleosDebugUnitTest` 대상이다. 위 assertion 및 소스 경로 대조는 실행 통과 증거가 아니다.
@@ -376,3 +376,23 @@ MainActivity는 변경하지 않는다. 차량값·출처는 상세 배치, 대�
 로컬 환경 확인(2026-11-09): Java·javac·Gradle 실행 경로와 Android SDK 환경 설정을 찾지 못해 설치 없이 소스 대조·diff 검사만 수행한다. 테스트 assertion은 실행 성공 증거가 아니다. 커밋·네트워크 작업은 수행하지 않으므로 새 전체 SHA 및 새 후보 Actions 증거는 대기다. 후속 새 커밋의 `testPleosDebugUnitTest`·`assemblePleosDebug` 성공, 기존·신규 XML의 실패·오류·건너뜀 모두 0, `gradle.log`, `source-sha.txt`와 `pleos-build-<full SHA>` 일치, 입력·APK 해시의 README 두 `sha256sum -c`, 기존 APK 패키지·ZIP·unsigned 검사를 확인해야 한다. 기준 성공으로 대체하지 않는다. 기준 `1e58b24f57548c5003b89e76f21e1a2415802245` 대비 작업 트리의 전체 diff·공백·지정 네 editPaths를 검사하며, 최종 `git diff --check 1e58b24f57548c5003b89e76f21e1a2415802245 HEAD`와 같은 범위 파일 검사는 새 커밋 이후 대기다.
 
 Windows 설치·화면·실제 SDK 콜백·실차·음성·음향 관측 증거는 없다. 합성 계약 검증과 실제 런타임·제출 완료는 별도다. 기존 제출 단계 표의 **1차 필수 제안서·서명 동의서**, **선택 프로토타입·적격 GitHub/APK**, **최종 PT 필수 작동 앱 시연** 구분을 유지하며 이번 변경으로 제출·시연 완료를 주장하지 않는다.
+
+
+## 동일 Activity 복귀와 루프박스 총높이 (소스 대조 2026-11-09)
+
+`VehicleHeight.start()`는 새 입력창 토큰을 발급하지만 같은 객체의 확인값은 유지한다. `stop()` 중에는 적용·삭제할 수 없고 복귀 후에도 이전 토큰은 거부한다. 현재 토큰의 **보완값 삭제**만 확인값을 지운다. 새 Activity는 새 VehicleHeight를 생성하므로 미입력이다. 총높이는 Bundle에 저장하지 않는다. 같은 Activity 복귀만으로 방문·체류 시간·구매 할인·추천 기준·제외 상태를 초기화하지 않는다. 원본 차량은 복귀마다 UNKNOWN에서 새 조회를 시작하며 이전 Option 재선택과 Selection 확인은 차단한다.
+
+다음은 `VehicleRefreshStateTest.sameScreenReturnKeepsRoofHeightAcrossFreshReadFailureAndExpiry`의 합성 입력·가짜 시계 기대값이다. AAOS 형태의 `fromHardware` 입력 1850mm·NON_ELECTRIC, 120분·구매 할인 가정, 사용자 확인 총높이 2250mm 적용 후 같은 Screen의 stop→onStart를 연결한다. 부설 우선·요금 우선 모두 아래와 같다. Android 화면이나 실제 SDK 콜백을 관측한 기록이 아니다.
+
+| 복귀 후 새 조회 | 원본 / 사용자 확인 / 적용 높이 | 기대 결과 |
+| --- | --- | --- |
+| 1850mm·NON_ELECTRIC | 1850 / 2250 / 2250mm | 코엑스 RESTRICTED·선택 불가, 대안 A 6,000원 우선·요청 가능 1곳 |
+| 2600mm·NON_ELECTRIC | 2600 / 2250 / 2600mm | 코엑스 RESTRICTED, 요청 가능 0곳 |
+| 조회 실패 또는 3000ms 만료 | null / 2250 / 2250mm, 연료 NEEDS_CHECK | 코엑스 RESTRICTED, 대안 A 6,000원만 요청 가능 |
+| 1850mm 재조회 후 현재 토큰으로 명시적 삭제·갱신 | 1850 / 미입력 / 1850mm | 코엑스 0원 우선·요청 가능 2곳 |
+
+상세는 원본 차량값·출처, 사용자 확인값·출처, 적용값을 구분하고 첫 화면의 대안 이유는 최대 한 줄을 유지한다. 복귀·재조회·계산·설명·확인 모델 생성까지 fake 요청은 0건이며 새 대안 A 확인만 원래 방문지와 시연 입구 37.51400, 127.06100으로 1건 요청한다. 중복 확인은 추가 요청하지 않는다. REJECTED·예외는 실패이고 SIMULATED는 시연 처리다. 이전 읽기 결과·타이머는 새 상태를 바꾸지 않는다. 반복 복귀·이전 토큰 거부·명시적 삭제·새 객체 초기화는 `VehicleHeightTest`에서 별도로 검사한다. 기존 `OptionGenerationTest`·`ParkingNavigationTest`도 새 후보 CI 검증 대상이다.
+
+이번 작업 환경에는 PATH의 Java·Gradle과 Android SDK 설정이 없어 로컬 JVM 테스트·APK 빌드를 실행하지 못했다. 도구 설치·네트워크·커밋·푸시는 수행하지 않는다. 소스 assertion과 공백 검사는 실행 XML을 대신하지 않는다. 새 커밋이 만들어진 뒤 기존 GitHub Actions에서 `testPleosDebugUnitTest`·`assemblePleosDebug`, 전체 XML의 실패·오류·건너뜀 각 0건을 확인해야 한다. `source-sha.txt`와 `pleos-build-<full SHA>`의 새 전체 SHA 일치, README의 두 `sha256sum -c` 검사, APK 패키지·ZIP·unsigned 검사와 기준 `fc3bd6fe09c98370ec8e3d1aebc1c5169ce05a40` 대비 전체 diff·지정 다섯 파일 제한도 대기다. 기준 후보의 성공은 새 후보 성공 근거가 아니다.
+
+Windows 설치·화면·Activity 수명주기, 실제 SDK 콜백·차량 신호·실차·음성·음향 증거는 미확보다. 외부 사실은 기존 출처·확인일을 유지하며 이번에는 재확인하지 않았다. 1차 필수 제안서·서명 동의서, 선택 프로토타입·적격 GitHub/APK, 최종 PT 필수 작동 앱 시연은 별도 준비 대상이다.
