@@ -46,7 +46,13 @@ record RecommendationExplanation(String headline, String vehicleDetails, String 
         String headline = "";
         if (!options.isEmpty() && options.get(0).requestAvailability().available()
                 && !options.get(0).lot().attached()) {
-            if (priority == ParkingPlan.Priority.FARE_FIRST && options.get(0).expectedWon() != null
+            for (ParkingPlan.Option option : options) {
+                if (option.lot().attached() && option.excluded()) {
+                    headline = option.lot().name() + " · 이번 방문 제외";
+                    break;
+                }
+            }
+            if (headline.isEmpty() && priority == ParkingPlan.Priority.FARE_FIRST && options.get(0).expectedWon() != null
                     && options.stream().anyMatch(option -> option.lot().attached()
                     && option.requestAvailability().available())) {
                 boolean knownAttachedFare = options.stream().anyMatch(option -> option.lot().attached()

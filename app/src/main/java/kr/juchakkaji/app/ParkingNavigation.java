@@ -25,6 +25,8 @@ final class ParkingNavigation {
     private final NavigationPort port;
     private final Runnable changed;
     private final Set<Long> sent = new HashSet<>();
+    // Identity is scoped to the exact facilities supplied for this visit, never a name.
+    private final Set<ParkingPlan.Lot> excluded = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
     private NavigationPort.Destination visit;
     private long generation;
     private long visitVersion;
@@ -39,6 +41,7 @@ final class ParkingNavigation {
     }
     private void receive(NavigationPort.Destination destination) {
         if (destination.echoedRequestId() != null && sent.contains(destination.echoedRequestId())) return;
+        excluded.clear();
         visit = destination;
         visitVersion++;
         generation++;
@@ -48,6 +51,18 @@ final class ParkingNavigation {
     }
     NavigationPort.Destination visit() { return visit; }
     long visitVersion() { return visitVersion; }
+    boolean setExcluded(long version, ParkingPlan.Lot lot, boolean value) {
+        if (version != visitVersion || !belongsToVisit(lot)) return false;
+        boolean updated = value ? excluded.add(lot) : excluded.remove(lot);
+        if (updated) {
+            invalidateSelections();
+            changed.run();
+        }
+        return updated;
+    }
+    private boolean belongsToVisit(ParkingPlan.Lot lot) {
+        return visit != null && visit.lots().stream().anyMatch(member -> member == lot);
+    }
     Status status() { return status; }
     Receipt lastRequest() { return lastRequest; }
     void invalidateSelections() { generation++; }
@@ -60,10 +75,10 @@ final class ParkingNavigation {
     }
     List<ParkingPlan.Option> options(Integer height, Integer width, VehicleProfile.DriveType drive,
                                     int minutes, boolean discount, ParkingPlan.Priority priority) {
-        return ParkingPlan.compare(visit == null ? List.of() : visit.lots(), height, width, drive, minutes, discount, priority);
+        return ParkingPlan.compare(visit == null ? List.of() : visit.lots(), height, width, drive, minutes, discount, priority, excluded);
     }
     Optional<Selection> select(ParkingPlan.Option option) {
-        if (visit == null || !visit.lots().contains(option.lot())) return Optional.empty();
+        if (!belongsToVisit(option.lot()) || excluded.contains(option.lot())) return Optional.empty();
         return ParkingPlan.routeRequest(visit.name(), option).map(route -> new Selection(this, generation, route));
     }
     Status confirm(Selection selection) {

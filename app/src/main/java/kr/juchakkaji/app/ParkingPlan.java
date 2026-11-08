@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import kr.juchakkaji.app.VehicleProfile.DriveType;
 
@@ -66,8 +67,12 @@ final class ParkingPlan {
 
     record RequestAvailability(boolean available, String reason) {}
 
-    record Option(Lot lot, Fit fit, String reason, Integer baseWon, Integer expectedWon) {
+    record Option(Lot lot, Fit fit, String reason, Integer baseWon, Integer expectedWon, boolean excluded) {
+        Option(Lot lot, Fit fit, String reason, Integer baseWon, Integer expectedWon) {
+            this(lot, fit, reason, baseWon, expectedWon, false);
+        }
         RequestAvailability requestAvailability() {
+            if (excluded) return new RequestAvailability(false, "이번 방문 제외");
             String entranceIssue = lot.entrance() == null ? "입구 정보 미확인"
                     : !lot.entrance().hasValidCoordinates() ? "입구 좌표 확인 필요" : "";
             if (fit != Fit.MATCHES_RECORDED_RULES) {
@@ -107,9 +112,18 @@ final class ParkingPlan {
     static List<Option> compare(List<Lot> lots, Integer vehicleHeightMm, Integer vehicleWidthMm,
                                 DriveType drive, int stayMinutes, boolean qualifiesForPurchaseDiscount,
                                 Priority priority) {
+        return compare(lots, vehicleHeightMm, vehicleWidthMm, drive, stayMinutes,
+                qualifiesForPurchaseDiscount, priority, Set.of());
+    }
+
+    static List<Option> compare(List<Lot> lots, Integer vehicleHeightMm, Integer vehicleWidthMm,
+                                DriveType drive, int stayMinutes, boolean qualifiesForPurchaseDiscount,
+                                Priority priority, Set<Lot> excluded) {
         List<Option> options = new ArrayList<>();
         for (Lot lot : lots) {
-            options.add(evaluate(lot, vehicleHeightMm, vehicleWidthMm, drive, stayMinutes, qualifiesForPurchaseDiscount));
+            Option evaluated = evaluate(lot, vehicleHeightMm, vehicleWidthMm, drive, stayMinutes, qualifiesForPurchaseDiscount);
+            options.add(new Option(lot, evaluated.fit(), evaluated.reason(), evaluated.baseWon(),
+                    evaluated.expectedWon(), excluded.contains(lot)));
         }
         Comparator<Option> existing = Comparator.comparing(Option::fit)
                 .thenComparing(option -> !option.lot().attached())

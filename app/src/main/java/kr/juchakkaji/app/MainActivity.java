@@ -285,7 +285,7 @@ public final class MainActivity extends Activity {
         LinearLayout.LayoutParams title = new LinearLayout.LayoutParams(0, -2, 1);
         title.setMarginStart(dp(10));
         line.addView(label(option.lot().name(), 16, 600, ink), title);
-        String value = option.requestAvailability().available() ? won(option.expectedWon())
+        String value = option.excluded() ? "이번 방문 제외" : option.requestAvailability().available() ? won(option.expectedWon())
                 : option.fit() == Fit.RESTRICTED
                     ? option.reason().contains("높이") ? "높이 초과" : "입차 제한"
                     : "확인 필요";
@@ -298,12 +298,15 @@ public final class MainActivity extends Activity {
     }
 
     private void showDetails(Option option, RecommendationExplanation explanation) {
+        long visitVersion = navigation.visitVersion();
         Lot lot = option.lot();
         String text = lot.type() + "\n입구 높이 제한 " + meters(lot.heightLimitMm())
                 + " (" + (lot.heightLimitMm() == null ? "미확인" : lot.heightLimitMm() + "mm") + ")"
                 + "\n" + explanation.vehicleDetails()
                 + "\n" + lot.widthDetails()
                 + (vehicle.model().isEmpty() ? "" : "\n차량 " + vehicle.model())
+                + "\n차량 판정: " + option.fit() + " · " + option.reason()
+                + "\n사용자 선택: " + (option.excluded() ? "이번 방문 제외" : "제외 없음")
                 + "\n" + option.requestAvailability().reason() + "\n\n" + lot.provenance();
         if (lot.tariff() != null && !lot.tariff().purchaseRule().isEmpty()) {
             text += "\n" + lot.tariff().purchaseRule();
@@ -311,6 +314,8 @@ public final class MainActivity extends Activity {
         LinearLayout body = column();
         body.setPadding(dp(24), dp(8), dp(24), 0);
         body.addView(label(text, 16, 400, ink));
+        body.addView(action(option.excluded() ? "제외 되돌리기" : "이번 방문에서 제외", false, () ->
+                navigation.setExcluded(visitVersion, lot, !option.excluded())));
         body.addView(action("추천 기준", false, () -> show(dialog().setTitle("추천 기준")
                 .setSingleChoiceItems(new String[]{"부설 우선", "요금 우선"},
                         priority == Priority.ATTACHED_FIRST ? 0 : 1, (d, which) -> {
