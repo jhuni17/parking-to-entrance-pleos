@@ -67,8 +67,8 @@ public final class ParkingPlanTest {
 
     @Test public void tariffRoundsPartialUnitAfterDiscount() {
         Tariff tariff = new Tariff(15, 1500, 120, "테스트 데이터");
-        assertEquals(1500, tariff.quote(121, true));
-        assertEquals(6000, tariff.quote(60, false));
+        assertEquals(Integer.valueOf(1500), tariff.quote(121, true));
+        assertEquals(Integer.valueOf(6000), tariff.quote(60, false));
     }
 
     @Test public void entranceReadyLotPrecedesFreeLotWithoutEntrance() {

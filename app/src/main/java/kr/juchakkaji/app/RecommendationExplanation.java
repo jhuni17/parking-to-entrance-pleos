@@ -46,10 +46,14 @@ record RecommendationExplanation(String headline, String vehicleDetails, String 
         String headline = "";
         if (!options.isEmpty() && options.get(0).requestAvailability().available()
                 && !options.get(0).lot().attached()) {
-            if (priority == ParkingPlan.Priority.FARE_FIRST
+            if (priority == ParkingPlan.Priority.FARE_FIRST && options.get(0).expectedWon() != null
                     && options.stream().anyMatch(option -> option.lot().attached()
                     && option.requestAvailability().available())) {
-                headline = "요금 우선 · 예상 요금이 낮은 대안";
+                boolean knownAttachedFare = options.stream().anyMatch(option -> option.lot().attached()
+                        && option.requestAvailability().available() && option.expectedWon() != null);
+                headline = !knownAttachedFare
+                        ? "요금 우선 · 요금 확인된 대안"
+                        : "요금 우선 · 예상 요금이 낮은 대안";
             }
             // Explain the first unavailable attached option, without reevaluating its rules.
             for (ParkingPlan.Option option : options) {

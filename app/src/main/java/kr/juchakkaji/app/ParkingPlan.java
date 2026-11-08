@@ -23,10 +23,16 @@ final class ParkingPlan {
     }
 
     record Tariff(int unitMinutes, int wonPerUnit, int purchaseFreeMinutes, String purchaseRule) {
-        int quote(int stayMinutes, boolean qualifiesForPurchaseDiscount) {
-            int freeMinutes = qualifiesForPurchaseDiscount ? purchaseFreeMinutes : 0;
-            int billedMinutes = Math.max(0, stayMinutes - freeMinutes);
-            return ((billedMinutes + unitMinutes - 1) / unitMinutes) * wonPerUnit;
+        Integer quote(int stayMinutes, boolean qualifiesForPurchaseDiscount) {
+            // Validate the whole tariff even when its discount is not selected.
+            if (unitMinutes <= 0 || wonPerUnit < 0 || purchaseFreeMinutes < 0 || stayMinutes < 0) {
+                return null;
+            }
+            long freeMinutes = qualifiesForPurchaseDiscount ? purchaseFreeMinutes : 0L;
+            long billedMinutes = Math.max(0L, (long) stayMinutes - freeMinutes);
+            long units = (billedMinutes + unitMinutes - 1L) / unitMinutes;
+            long amount = units * wonPerUnit;
+            return amount > Integer.MAX_VALUE ? null : (int) amount;
         }
     }
 
