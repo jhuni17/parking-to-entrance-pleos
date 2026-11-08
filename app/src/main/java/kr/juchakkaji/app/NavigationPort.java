@@ -8,7 +8,7 @@ import java.util.function.Consumer;
 interface NavigationPort {
     record Destination(String id, String name, List<ParkingPlan.Lot> lots,
                        Long echoedRequestId) {
-        Destination { lots = List.copyOf(lots); }
+        public Destination { lots = List.copyOf(lots); }
     }
     enum Result { SIMULATED, ACCEPTED, REJECTED }
 
