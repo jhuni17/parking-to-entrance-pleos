@@ -48,4 +48,6 @@ GitHub Actions의 `pleos-emulator-validation.yml`은 Ubuntu 24.04에서 PR의 �
 | 동기·지연 되울림 시 원래 방문지 유지·새 방문지 교체 | `synchronousAndDelayedEntranceEchoPreserveVisitButNewVisitReplacesIt` |
 | 조건 변경·높이 및 미확인 제한 유지 | `changedVehicleConditionsInvalidateOpenConfirmation`, `restrictedAndUnknownOptionsCannotBeSelected` 및 기존 `ParkingPlanTest` |
 
-로컬 시도 (2026-11-08): `gradle --offline --no-daemon --console=plain :app:testPleosDebugUnitTest :app:assemblePleosDebug`는 `gradle: command not found`로 실행되지 않았다. `java`와 `javac`도 PATH에 없다. 테스트 추가는 실행 통과 증거가 아니다. 이번 변경을 포함한 PR HEAD에서 기존 Actions의 두 작업이 통과해야 빌드 통과 조건이 충족된다. 이 작업에서는 네트워크·커밋·푸시를 수행하지 않아 해당 HEAD의 CI 결과는 대기 상태다. 실제 SDK 콜백, Windows 에뮬레이터, 실차 및 공개 배포 증거는 없다.
+후보 `1b3e2716204f023c2adabdec7d4839be3503b074`는 사용자 제공 검토 보고상 Actions `42481652866`에서 JVM 테스트 13건(실패·오류·건너뜀 각 0건)과 unsigned APK 빌드가 성공했다. 보고 수령일은 2026-11-08이며 이번 작업에서 직접 재검증하지 않았다. APK 해시와 근거 수준, 제출 단계는 [후보별 검증 상태](contest-brief.md#후보별-검증-상태)에 기록한다.
+
+과거 로컬 시도 (2026-11-08): `gradle --offline --no-daemon --console=plain :app:testPleosDebugUnitTest :app:assemblePleosDebug`는 `gradle: command not found`로 실행되지 않았고, 당시 `java`와 `javac`도 PATH에 없었다. 이는 당시 환경의 기록이다. 문서 정정을 포함한 이후 변경 HEAD는 별도 검증 대상이다. 실제 SDK 콜백, Windows 에뮬레이터 설치·화면, 차량·음성·음향 시험 및 릴리스·공개 배포 증거는 미확보다.
