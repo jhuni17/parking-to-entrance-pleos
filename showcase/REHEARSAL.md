@@ -36,3 +36,21 @@
 새 합성 사례는 앱의 기존 코엑스·루프박스 시연 데이터에 추가하지 않았다. 기존 높이 경계값·전기차 정책 미확인과 명시적 금지·할인 테스트를 유지한다. 위 기대 결과는 소스와 테스트 assertion 대조이며 실행 통과, 설치 화면 관측, 실제 SDK 신호 또는 사용자 효과 실측의 증거가 아니다. 실제 Pleos 신호에 따른 사용자 효과는 미관측이다.
 
 이번 변경 작업 트리의 로컬 검증: `gradle --offline --no-daemon --console=plain :app:testPleosDebugUnitTest :app:assemblePleosDebug`를 시도했으나 `gradle: command not found`(종료 127)로 미실행이다. PATH에서 `java`·`javac`도 확인되지 않았다. 도구 설치나 의존성 변경은 하지 않았다. 이번 소스에 대응하는 테스트 XML·unsigned APK가 없어 테스트 실패·오류 0건 및 빌드 성공 기준은 미충족이다. 과거 후보의 CI·XML·APK를 이번 결과로 대체하지 않는다. `git diff --check`는 통과했고 기준 `b8af43df19b58ff22e41c92f1a610eb3cdfe9dab` 대비 변경은 지정 다섯 파일에 한정한다. Windows 에뮬레이터 설치·화면, 실제 SDK 콜백·실차·사용자 효과는 여전히 미관측이다.
+
+## 차량·방문 입력 복원 (2026-11-08 소스 대조)
+
+화면 재생성 뒤 루프박스·전기차·구매 할인·체류 시간을 다시 입력하지 않아도 같은 주차 판단을 유지하도록 구현했다. `DemoProfile`은 Android 비의존 입력 상태와 네 저장 키를 정의한다. `MainActivity`는 `onSaveInstanceState`에서 네 값을 저장하고, `onCreate`에서 위젯과 첫 후보 계산 전에 복원한다. 체크박스 표시, 시간 버튼 문구와 `navigation.options`는 같은 복원 상태를 사용한다. 선택·확인 대화상자·경로 요청 결과는 저장하지 않으며 복원으로 요청을 자동 재전송하지 않는다.
+
+| 재생성 전 입력 → 복원 후 동일 입력 | 전후 동일해야 할 기대 결과 (화면 관측 아님) | JVM assertion |
+| --- | --- | --- |
+| 저장값 없음: 1.85 m·비전기차·할인 적용·120분 | 기존 최초 시작값 유지, 코엑스 예상 0원 우선 | `missingStateUsesOriginalFirstStartDefaults` |
+| 루프박스·전기차·할인 각 참/거짓 × 60/120분, 총 16조합 | 네 값과 `ParkingPlan.compare`의 전체 결과가 왕복 전후 동일 | `allSixteenInputCombinationsRoundTripWithSamePlan` |
+| 2.25 m·비전기차·할인 적용·120분 | 코엑스 RESTRICTED·경로 요청 생성 불가, 대안 A 예상 6,000원 첫 후보 | `restoredRoofBoxKeepsCoexRestrictedAndAlternativeFirst` |
+| 1.85 m·전기차·할인 적용·120분 | 코엑스 전기차 조건 NEEDS_CHECK·경로 요청 생성 불가 | `restoredElectricProfileKeepsUnknownPolicyUnrequestable` |
+| 1.85 m·비전기차·할인 해제·60분 | 코엑스 예상 6,000원, 대안 A 예상 3,000원 | `restoredNoDiscountAndOneHourKeepFullQuotes` |
+
+근거: `DemoProfileTest.java`의 새 assertion과 기존 `SampleTrip.LOTS`를 2026-11-08 로컬에서 대조했다. 시설 수치의 출처·확인일은 기존 `SampleTrip.java` 표기를 따르며 외부 재확인은 하지 않았다. 대안 A와 입구 좌표는 시연값, 코엑스 전기차 조건은 미확인이다. 테스트는 Map 저장·복원과 주차 판단을 합성 검증하도록 작성했으며 Android Bundle·생명주기·위젯 실행 검증을 대신하지 않는다.
+
+실제 재생성 리허설은 미관측이다. 향후 별도 승인된 Windows 환경에서 각 사례를 입력하고 화면 재생성 전후 체크박스·시간 문구·후보·요금을 비교하며, 확인 대화상자와 요청 결과가 복원되지 않고 자동 요청도 없는지 관측해야 한다. Android 화면 재생성·실제 Pleos 신호·사용자 효과를 이번 작업에서 관측했다고 주장하지 않는다.
+
+이번 profile-restore 작업의 로컬 실행: `gradle --offline --no-daemon --console=plain :app:testPleosDebugUnitTest :app:assemblePleosDebug`는 `gradle: command not found`(종료 127)로 미실행이다. PATH의 `java`·`javac`도 없다. 설치·의존성 변경은 하지 않았다. 변경 소스에 대응하는 실행 테스트 XML·unsigned APK가 없으므로 실패·오류·건너뜀 0건과 빌드 성공이라는 수용 기준 6은 미충족이다. 과거 후보의 XML·APK·CI 보고를 이번 실행 증거로 사용하지 않는다. `git diff --check`는 통과했다. 기준 `589948ea1ffe72992434f36c9f264cfa5834d703` 대비 추적 파일 diff와 신규 파일 목록을 합쳐 지정 다섯 파일만 변경했으며 주행 제한·서명·권한·의존성·워크플로·README 아티팩트 계약은 변경하지 않았다.

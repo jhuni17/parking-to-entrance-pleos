@@ -20,16 +20,20 @@ import static kr.juchakkaji.app.ParkingPlan.*;
 public final class MainActivity extends Activity {
     private ParkingNavigation navigation;
     private TextView destination;
-    private boolean roofBox;
-    private boolean electric;
-    private boolean purchaseDiscount;
-    private int stayMinutes = 120;
+    private DemoProfile profile = DemoProfile.defaults();
     private TextView result;
     private LinearLayout list;
 
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
+        if (state != null) {
+            profile = DemoProfile.restore(java.util.Map.of(
+                    DemoProfile.ROOF_BOX, state.getBoolean(DemoProfile.ROOF_BOX, profile.roofBox()),
+                    DemoProfile.ELECTRIC, state.getBoolean(DemoProfile.ELECTRIC, profile.electric()),
+                    DemoProfile.PURCHASE_DISCOUNT, state.getBoolean(DemoProfile.PURCHASE_DISCOUNT, profile.purchaseDiscount()),
+                    DemoProfile.STAY_MINUTES, state.getInt(DemoProfile.STAY_MINUTES, profile.stayMinutes())));
+        }
         ScrollView scroll = new ScrollView(this);
         LinearLayout content = column();
         content.setPadding(dp(24), dp(16), dp(24), dp(24));
@@ -43,17 +47,18 @@ public final class MainActivity extends Activity {
         SampleTrip.SimulatedNavigation adapter = new SampleTrip.SimulatedNavigation();
         navigation = new ParkingNavigation(adapter, this::refresh);
         adapter.start();
-        content.addView(toggle("루프박스 포함 2.25 m (기본 1.85 m)", value -> roofBox = value));
-        content.addView(toggle("전기차 시연 프로필", value -> electric = value));
-        CheckBox purchase = toggle("대상 매장 10만 원 영수증 할인 가정", value -> purchaseDiscount = value);
-        purchase.setChecked(true);
-        content.addView(purchase);
+        content.addView(toggle("루프박스 포함 2.25 m (기본 1.85 m)", profile.roofBox(),
+                value -> profile = new DemoProfile(value, profile.electric(), profile.purchaseDiscount(), profile.stayMinutes())));
+        content.addView(toggle("전기차 시연 프로필", profile.electric(),
+                value -> profile = new DemoProfile(profile.roofBox(), value, profile.purchaseDiscount(), profile.stayMinutes())));
+        content.addView(toggle("대상 매장 10만 원 영수증 할인 가정", profile.purchaseDiscount(),
+                value -> profile = new DemoProfile(profile.roofBox(), profile.electric(), value, profile.stayMinutes())));
         Button duration = new Button(this);
-        duration.setText("이용 시간 2시간 · 1시간으로 변경");
+        duration.setText(durationText());
         duration.setOnClickListener(view -> {
-            stayMinutes = stayMinutes == 120 ? 60 : 120;
-            duration.setText(stayMinutes == 120
-                    ? "이용 시간 2시간 · 1시간으로 변경" : "이용 시간 1시간 · 2시간으로 변경");
+            profile = new DemoProfile(profile.roofBox(), profile.electric(), profile.purchaseDiscount(),
+                    profile.stayMinutes() == 120 ? 60 : 120);
+            duration.setText(durationText());
             refresh();
         });
         content.addView(duration);
@@ -65,13 +70,29 @@ public final class MainActivity extends Activity {
         refresh();
     }
 
+    @Override
+    protected void onSaveInstanceState(Bundle state) {
+        super.onSaveInstanceState(state);
+        // Only input conditions cross recreation; selections and route results do not.
+        java.util.Map<String, Object> saved = profile.save();
+        state.putBoolean(DemoProfile.ROOF_BOX, (Boolean) saved.get(DemoProfile.ROOF_BOX));
+        state.putBoolean(DemoProfile.ELECTRIC, (Boolean) saved.get(DemoProfile.ELECTRIC));
+        state.putBoolean(DemoProfile.PURCHASE_DISCOUNT, (Boolean) saved.get(DemoProfile.PURCHASE_DISCOUNT));
+        state.putInt(DemoProfile.STAY_MINUTES, (Integer) saved.get(DemoProfile.STAY_MINUTES));
+    }
+
+    private String durationText() {
+        return profile.stayMinutes() == 120
+                ? "이용 시간 2시간 · 1시간으로 변경" : "이용 시간 1시간 · 2시간으로 변경";
+    }
+
     private void refresh() {
         if (list == null) return;
         navigation.invalidateSelections();
         destination.setText("방문 목적지  " + navigation.visit().name() + " (시연 입력)");
-        List<Option> options = navigation.options(roofBox ? 2250 : 1850,
-                electric, stayMinutes, purchaseDiscount);
-        result.setText(candidateSummary(options) + "\n" + routeStatus() + "\n차량 높이 " + (roofBox ? "2.25 m" : "1.85 m") + " · 등록 시연값");
+        List<Option> options = navigation.options(profile.vehicleHeightMm(),
+                profile.electric(), profile.stayMinutes(), profile.purchaseDiscount());
+        result.setText(candidateSummary(options) + "\n" + routeStatus() + "\n차량 높이 " + (profile.roofBox() ? "2.25 m" : "1.85 m") + " · 등록 시연값");
         list.removeAllViews();
         for (Option option : options) {
             LinearLayout card = column();
@@ -133,12 +154,13 @@ public final class MainActivity extends Activity {
         };
     }
 
-    private CheckBox toggle(String title, java.util.function.Consumer<Boolean> change) {
+    private CheckBox toggle(String title, boolean checked, java.util.function.Consumer<Boolean> change) {
         CheckBox box = new CheckBox(this);
         box.setMinHeight(dp(48));
         box.setText(title);
-        box.setOnCheckedChangeListener((button, checked) -> {
-            change.accept(checked);
+        box.setChecked(checked);
+        box.setOnCheckedChangeListener((button, value) -> {
+            change.accept(value);
             refresh();
         });
         return box;
