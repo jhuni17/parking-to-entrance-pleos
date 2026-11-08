@@ -22,6 +22,7 @@ public final class MainActivity extends Activity {
     private TextView destination;
     private DemoProfile profile = DemoProfile.defaults();
     private TextView result;
+    private TextView lastRequest;
     private LinearLayout list;
 
     @Override
@@ -64,8 +65,10 @@ public final class MainActivity extends Activity {
         content.addView(duration);
 
         result = label("", 18);
+        lastRequest = label("", 18);
         list = column();
         content.addView(result);
+        content.addView(lastRequest);
         content.addView(list);
         refresh();
     }
@@ -92,7 +95,15 @@ public final class MainActivity extends Activity {
         destination.setText("방문 목적지  " + navigation.visit().name() + " (시연 입력)");
         List<Option> options = navigation.options(profile.vehicleHeightMm(),
                 profile.electric(), profile.stayMinutes(), profile.purchaseDiscount());
-        result.setText(candidateSummary(options) + "\n" + routeStatus() + "\n차량 높이 " + (profile.roofBox() ? "2.25 m" : "1.85 m") + " · 등록 시연값");
+        result.setText(candidateSummary(options) + "\n현재 조건의 후보 · 요청은 아래 마지막 기록 참조\n차량 높이 " + (profile.roofBox() ? "2.25 m" : "1.85 m") + " · 등록 시연값");
+        ParkingNavigation.Receipt receipt = navigation.lastRequest();
+        lastRequest.setText(receipt == null ? "마지막 요청 없음"
+                : "마지막 요청 · 과거 확인 기록 (현재 후보 판단과 별개)"
+                + "\n방문 목적지  " + receipt.request().visit()
+                + "\n차량 도착점  " + receipt.request().entrance().label()
+                + String.format(Locale.KOREA, "\n좌표  %.5f, %.5f",
+                        receipt.request().entrance().latitude(), receipt.request().entrance().longitude())
+                + "\n" + routeStatus(receipt.outcome()));
         list.removeAllViews();
         for (Option option : options) {
             LinearLayout card = column();
@@ -144,8 +155,8 @@ public final class MainActivity extends Activity {
                 .show();
     }
 
-    private String routeStatus() {
-        return switch (navigation.status()) {
+    private String routeStatus(ParkingNavigation.Status status) {
+        return switch (status) {
             case IDLE -> "입구 요청 전 · 시연 모드";
             case SIMULATED -> "시연 어댑터 요청 처리 · 실제 길안내 시작 아님";
             case ACCEPTED -> "내비 요청 수락";

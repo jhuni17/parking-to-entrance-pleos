@@ -14,11 +14,13 @@ public final class ParkingNavigationTest {
         long lastId;
         boolean echo;
         boolean throwsFailure;
+        Runnable duringRequest = () -> {};
         public void setDestinationListener(Consumer<Destination> listener) { this.listener = listener; }
         public Result requestEntrance(long id, ParkingPlan.RouteRequest request) {
             requests.add(request);
             lastId = id;
             if (echo) listener.accept(new Destination("entrance", request.entrance().label(), List.of(), id));
+            duringRequest.run();
             if (throwsFailure) throw new IllegalStateException("fake failure");
             return result;
         }
@@ -104,4 +106,100 @@ public final class ParkingNavigationTest {
         }
         assertTrue(fake.requests.isEmpty());
     }
+    @Test public void simulatedAlternativeReceiptStartsEmptyAndSurvivesConditionChanges() {
+        Fake fake = new Fake();
+        fake.result = NavigationPort.Result.SIMULATED;
+        ParkingNavigation nav = new ParkingNavigation(fake, () -> {});
+        assertNull(nav.lastRequest());
+        fake.visit(SampleTrip.VISIT, SampleTrip.LOTS);
+        ParkingPlan.Option alternative = nav.options(2250, false, 120, true).get(0);
+        assertEquals(SampleTrip.LOTS.get(1), alternative.lot());
+        ParkingNavigation.Selection selection = nav.select(alternative).orElseThrow();
+        assertNull(nav.lastRequest());
+        assertEquals(0, fake.requests.size());
+        assertEquals(ParkingNavigation.Status.SIMULATED, nav.confirm(selection));
+        ParkingNavigation.Receipt receipt = nav.lastRequest();
+        assertSame(selection.request(), receipt.request());
+        assertEquals("스타필드 코엑스몰", receipt.request().visit());
+        assertEquals("대안 A 입구 (시연 좌표)", receipt.request().entrance().label());
+        assertEquals(37.51400, receipt.request().entrance().latitude(), 0.0);
+        assertEquals(127.06100, receipt.request().entrance().longitude(), 0.0);
+        assertEquals(ParkingNavigation.Status.SIMULATED, receipt.outcome());
+        assertEquals(1, fake.requests.size());
+        nav.invalidateSelections();
+        nav.options(1850, true, 60, false);
+        assertSame(receipt, nav.lastRequest());
+    }
+
+    private void assertFailedReplacement(boolean throwsFailure) {
+        Fake fake = new Fake();
+        ParkingNavigation nav = new ParkingNavigation(fake, () -> {});
+        fake.visit(SampleTrip.VISIT, SampleTrip.LOTS);
+        ParkingNavigation.Selection first = select(nav);
+        nav.confirm(first);
+        ParkingNavigation.Receipt previous = nav.lastRequest();
+        assertEquals(ParkingNavigation.Status.ACCEPTED, previous.outcome());
+        ParkingNavigation.Selection next = nav.select(nav.options(2250, false, 120, true).get(0)).orElseThrow();
+        assertSame(previous, nav.lastRequest());
+        fake.result = NavigationPort.Result.REJECTED;
+        fake.throwsFailure = throwsFailure;
+        assertEquals(ParkingNavigation.Status.REJECTED, nav.confirm(next));
+        ParkingNavigation.Receipt failed = nav.lastRequest();
+        assertNotSame(previous, failed);
+        assertSame(next.request(), failed.request());
+        assertEquals(SampleTrip.VISIT, failed.request().visit());
+        assertEquals(SampleTrip.LOTS.get(1).entrance(), failed.request().entrance());
+        assertEquals(ParkingNavigation.Status.REJECTED, failed.outcome());
+        assertEquals(2, fake.requests.size());
+        assertEquals(ParkingNavigation.Status.STALE, nav.confirm(next));
+        assertSame(failed, nav.lastRequest());
+        assertEquals(2, fake.requests.size());
+    }
+    @Test public void rejectionReplacesPreviousReceiptAndDuplicateDoesNothing() {
+        assertFailedReplacement(false);
+    }
+    @Test public void exceptionReplacesPreviousReceiptAndDuplicateDoesNothing() {
+        assertFailedReplacement(true);
+    }
+    @Test public void echoesKeepReceiptAndNewVisitClearsIt() {
+        Fake fake = new Fake();
+        fake.echo = true;
+        ParkingNavigation nav = new ParkingNavigation(fake, () -> {});
+        fake.visit(SampleTrip.VISIT, SampleTrip.LOTS);
+        NavigationPort.Destination original = nav.visit();
+        ParkingNavigation.Selection selection = select(nav);
+        nav.confirm(selection);
+        ParkingNavigation.Receipt receipt = nav.lastRequest();
+        assertSame(original, nav.visit());
+        assertSame(selection.request(), receipt.request());
+        assertEquals(ParkingNavigation.Status.ACCEPTED, receipt.outcome());
+        fake.listener.accept(new NavigationPort.Destination("echo", "entrance", List.of(), fake.lastId));
+        assertSame(original, nav.visit());
+        assertSame(receipt, nav.lastRequest());
+        fake.visit("new visit", SampleTrip.LOTS);
+        assertNull(nav.lastRequest());
+        assertEquals(ParkingNavigation.Status.IDLE, nav.status());
+        assertEquals(1, fake.requests.size());
+        fake.listener.accept(new NavigationPort.Destination("late echo", "entrance", List.of(), fake.lastId));
+        assertEquals("new visit", nav.visit().name());
+        assertNull(nav.lastRequest());
+    }
+    @Test public void visitDuringRequestCannotReceiveOldOutcome() {
+        Fake fake = new Fake();
+        ParkingNavigation nav = new ParkingNavigation(fake, () -> {});
+        fake.visit("original", SampleTrip.LOTS);
+        nav.confirm(select(nav));
+        assertNotNull(nav.lastRequest());
+        fake.duringRequest = () -> {
+            fake.visit("new visit", SampleTrip.LOTS);
+            assertNull(nav.lastRequest());
+        };
+        assertEquals(ParkingNavigation.Status.ACCEPTED, nav.confirm(select(nav)));
+        assertEquals("new visit", nav.visit().name());
+        assertEquals(ParkingNavigation.Status.IDLE, nav.status());
+        assertNull(nav.lastRequest());
+        assertEquals(2, fake.requests.size());
+        assertEquals("original", fake.requests.get(1).visit());
+    }
+
 }
