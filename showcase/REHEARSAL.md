@@ -34,7 +34,7 @@ Windows 설치·화면·실제 SDK 콜백·차량 신호·실차·음성·음향
 이 절은 향후 화면 리허설 대본이며 실행 관측 기록이 아니다. 원본 차량 속성 입력 단계는 없으며, 총높이 보완 절차는 아래 현행 절을 따른다.
 
 1. 앱을 연다. `onCreate`는 시연 목적지 **스타필드 코엑스몰**을 설정한다. 최초 요금 조건은 120분·구매 할인 미적용이다. `onStart` 조회 동안 “차량 정보 확인 중”을 기다린다.
-2. 조회 결과를 확인한다. 종료 후 **“차량 높이 확인 필요”**라면 입구 요청 불가다. 후보 행을 눌러 상세·요금 조건까지만 보고 요청 단계로 진행하지 않는다. 높이를 받았어도 요청 가능 후보가 없으면 “입구 안내 가능한 주차장 없음”으로 요청을 중단한다. 빈 시설 목록은 “시설 정보 없음”으로 구분한다. 후보 수 숫자는 화면에 표시되지 않는다(`refresh`).
+2. 조회 결과를 확인한다. 종료 후 **“차량 높이 확인 필요” → 입구 요청 보류**로 시작한다. **루프박스·적재물을 포함해 직접 확인한 총높이가 있을 때만** 후보 행을 눌러 **시설 상세 → “총높이 보완” → 확인값 입력 → “적용” → 후보 재판정**으로 진행한다. 적용 후 상세가 닫히고 목록이 갱신되면 **요청 가능한 입구만 새로 선택**해 3~4단계로 진행한다(`showDetails/showTotalHeight/refresh/confirmPreview`). 확인값이 없거나 재판정 후 요청 가능 후보가 없으면 요청 보류로 끝낸다. 높이는 있지만 후보가 없으면 “입구 안내 가능한 주차장 없음”, 빈 시설 목록은 “시설 정보 없음”으로 구분한다. “취소”·잘못된 입력은 기존 보완값을 유지하며, “보완값 삭제”는 원본 높이 판단으로 돌아가 재판정한다. 원본 높이도 없으면 다시 요청 보류다. 입력 정책과 출처 구분은 [총높이 보완 현행 절차](#총높이-보완--현행-절차-소스-대조일-2026-11-09), 수치 대조는 아래 [높이 미확인 복구 합성 예시](#높이-미확인-복구-합성-예시-소스assertion-대조일-2026-11-09)를 따른다. 후보 수 숫자는 화면에 표시되지 않는다.
 3. 추천 카드의 **“상세”** 또는 다른 후보 행을 누른다. 상세에서 입구 높이 제한·차량 높이·연료 유형·높이 출처·판정 사유·자료 출처를 읽는다. **“요금 조건”**에서 현재 값이 표시된 **체류 시간(분) 숫자 입력(정수 1~360)**, **“구매 할인 조건 충족 가정”**을 확인하고 **“적용”**으로 반영하거나 **“취소”**한다. 잘못된 입력은 오류를 표시하고 창과 기존 시간·할인을 유지하며 취소는 변경하지 않는다. 할인은 실제 영수증 검증이 아닌 가정이다(`showDetails/showQuoteSettings`).
 4. 요청 가능한 경우만 추천 카드의 **“입구 안내 ↗”** 또는 상세의 **“입구 안내”**를 누른다. **“이 입구로 안내할까요?”** 확인창에 원래 방문지·선택 주차장·입구·체류 분별 예상 요금·구매 할인 가정의 적용 범위와 “시연 경로 요청”이 나온다. 추천 카드와 시설 상세 모두 같은 `EntranceConfirmation`을 사용하며 표시한 모델의 Selection으로 확인한다. **“취소”**하면 요청하지 않는다. 다시 선택해 **“시연 요청”**을 누르면 선택한 입구로 한 번 요청하고 결과 **“시연 요청 완료”**를 기대한다. 조건이 바뀐 선택은 “조건이 바뀌었습니다. 입구를 다시 선택하세요.”로 처리한다(`confirmPreview`).
 5. 확인창이 닫힌 뒤 목록 밖 **입구 이름 · 결과 요약**을 누른다. **“마지막 요청”** 상세의 방문지·입구·좌표·결과를 확인하고 **“닫기”**를 누른다(`refresh/showReceipt/RequestRecheck`). 기록이 없으면 이 요약은 숨겨진다.
@@ -79,11 +79,11 @@ Windows 설치·화면·실제 SDK 콜백·차량 신호·실차·음성·음향
 
 최초 시작은 **120분·구매 할인 미적용**이다. 차량은 `onStart`에서 UNKNOWN으로 초기화한 뒤 AAOS에서 다시 조회한다. 고정 차량 높이나 비전기차 기본값을 넣지 않는다. `ParkingPlan.compare`의 기본 정렬은 요청 가능 여부 → Fit → 부설 우선 → 예상 요금 순이다. 상세의 추천 기준에서 요금 우선을 고르면 요청 가능한 후보만 예상 요금 오름차순(미확인 마지막), 동률 부설 우선, 나머지 동률 입력 순서로 정렬한다. 요청 불가 후보의 판정과 기존 순서는 유지한다. 입구 누락은 명시적 입차 금지가 아니라 “입구 정보 미확인”이다. `candidateSummary`의 후보 수·빈 목록 문구는 JVM 테스트 대상이며 현재 `MainActivity.refresh`는 이를 화면에 표시하지 않는다. 화면 상태는 조회 중 “차량 정보 확인 중”, 조회 종료 후 높이 누락이면 “차량 높이 확인 필요”, 높이는 있지만 요청 가능 0건이면 “입구 안내 가능한 주차장 없음”이다.
 
-아래 표는 두 문서에 동일하게 적용한다. 합성 행의 수치는 기존 입력·요금식·assertion을 대조한 계산 결과이며 화면의 후보 수 표시나 실제 차량 신호 관측을 뜻하지 않는다. 원본 차량 속성·연료를 바꾸는 수동 조작은 없다. 현재는 상세에서 사용자 확인 총높이를 별도로 보완할 수 있다.
+아래 표는 두 문서에 동일하게 적용한다. 합성 행의 수치는 기존 입력·요금식·assertion을 대조한 계산 결과이며 화면의 후보 수 표시나 실제 차량 신호 관측을 뜻하지 않는다. 원본 차량 속성·연료를 바꾸는 수동 조작은 없다. 현재는 상세에서 사용자 확인 총높이를 별도로 보완할 수 있다. 높이 미확인 복구의 고정 조건·금액·요청 수 대조는 아래 **높이 미확인 복구 합성 예시**와 **총높이 보완 — 현행 절차**를 함께 따른다.
 
 | 구분·조건 | 기대 결과 | 기존 소스·테스트 근거 |
 | --- | --- | --- |
-| 현재 화면 조작: 최초 시작 → 조회 종료, 높이 미확인 | “차량 높이 확인 필요”; 입구 요청 불가. 상세·요금 조건까지만 확인 | `MainActivity.onCreate/onStart/refresh/showDetails`, `ParkingPlan.evaluate` |
+| 현재 화면 조작: 최초 시작 → 조회 종료, 높이 미확인 | “차량 높이 확인 필요” → 요청 보류. 직접 확인한 총높이가 있을 때만 시설 상세 → 총높이 보완 → 적용 → 후보 재판정 → 요청 가능한 입구만 새로 선택. 확인값이 없거나 후보가 없으면 요청 보류. 취소·잘못된 입력은 기존값 유지, 보완값 삭제는 원본 높이 판단 복귀 | `MainActivity.onCreate/onStart/showDetails/showTotalHeight/refresh/confirmPreview`, `VehicleHeightTest.inputPolicyInvalidAndCancelledInputDoNotMutateAndSessionsExpire` |
 | JVM 합성: 높이 미확인·NON_ELECTRIC·120분·할인 미적용 | 요청 가능 0건; 높이 확인 필요로 요청 차단 | `VehicleProfileTest.missingOrInvalidDimensionsCannotCreateARequestableOption`, `VehicleReadResultTest.twoDisconnectedReadsTerminateUnknownWithoutDemoOrFuelAssumptions` |
 | JVM 합성: 1850mm·NON_ELECTRIC·120분·할인 미적용 | 코엑스 12,000원이 대안 A 6,000원보다 먼저; 요청 가능 2건. 부설 우선 정렬 | `ParkingPlanTest.noPurchaseConditionShowsFullPriceAndKeepsUsableOnSiteOptionFirst`, `ParkingPlan.compare`, `SampleTrip.LOTS` 요금식 |
 | JVM 합성: 1850mm·NON_ELECTRIC·120분·할인 적용 | 코엑스 예상 0원 우선, 기본 요금 12,000원; 요청 가능 2건 | `ParkingPlanTest.purchaseConditionMakesAttachedLotFirst`, `SampleTrip.LOTS` |
@@ -167,6 +167,22 @@ Windows 설치·화면·재생성, 실제 SDK 콜백·차량 신호, 실차·음
 
 Windows 에뮬레이터 설치·화면, 실제 Pleos 서비스 연결/속성 콜백, 실차, 음성 및 공개 배포는 실행하지 않았으며 런타임 관측 증거는 없다. 향후 별도 승인된 환경에서는 첫 미연결→연결 성공 시 자동 후보 변경, 연속 미연결 시 확인 필요 종료, 치수 미지원 시 즉시 종료, 재조회 대기/진행 중 화면 종료·재진입 시 이전 결과 차단을 확인해야 한다.
 
+
+## 높이 미확인 복구 합성 예시 (소스/assertion 대조일 2026-11-09)
+
+주 리허설의 높이 미확인 분기는 아래 기존 테스트와 대조한다. 조건은 **원본 높이·연료 모두 미확인, 120분·구매 할인 미적용·사용자 제외 없음**으로 고정한다. **1850mm는 합성 검증용 사용자 확인값**이다. 실제 총높이를 모르는 사용자가 이 숫자를 그대로 입력하는 절차가 아니다. 실제 차량값 수신은 AAOS 원본과 그 출처로, 사용자 보완은 직접 확인값이라는 별도 근거로 취급한다. 상세에서 원본 차량값·기존 출처, 사용자 직접 확인 총높이·출처, 판단 적용 높이를 각각 읽는다. 입력 정책과 조작은 아래 **총높이 보완 — 현행 절차**를 따른다.
+
+| 단계·고정 조건에서의 기대값 | 기존 assertion 대응 |
+| --- | --- |
+| 보완 전: 요청 가능 후보 0곳, 요청 보류 | `VehicleHeightTest.missingHeightRecoveryDeletionAndBoundaryPreserveUnknownFuel`: 최초 `requestableCount` 0 |
+| 사용자 확인 총높이 1850mm 적용 후: 요청 가능 후보 1곳, 대안 A만 가능. 코엑스는 연료 확인 필요·NEEDS_CHECK이며 비전기차로 간주하지 않음 | 같은 테스트: 보완 후 count 1·첫 후보 비부설·코엑스 Fit와 연료 사유·상세의 연료 확인 필요 및 비전기차 문구 부재 |
+| 같은 보완 후 대안 A의 120분 예상 요금 6,000원 | `VehicleReadResultTest.expiredUnknownCanSupplementHeightAndOnlyConfirmRequestsEntrance`: 만료 후 연료 NEEDS_CHECK 유지·count 1·대안 A 이름·`expectedWon` 6000 |
+| 보완값 삭제 후: 적용 높이 null, 요청 가능 후보 0곳으로 복귀·요청 보류 | `VehicleHeightTest.missingHeightRecoveryDeletionAndBoundaryPreserveUnknownFuel`: clear 후 effectiveMm null·count 0. 위 세 단계의 후보 수는 0→1→0곳이며 요청 횟수와 다름 |
+| 보완·계산·선택까지 요청 0건; 유효한 명시적 확인만 선택 입구 37.51400, 127.06100으로 정확히 1건 | 위 `VehicleReadResultTest`: select 후 fake.requests 비어 있음, confirm 후 size 1·선택 좌표·원래 방문지 유지, 중복 확인 STALE |
+
+취소는 `MainActivity.showTotalHeight`의 취소 리스너가 값을 적용하지 않으며, 잘못된 입력은 오류를 표시하고 입력창과 기존 보완값을 유지한다. `VehicleHeightTest.inputPolicyInvalidAndCancelledInputDoNotMutateAndSessionsExpire`가 입력 불변성을 대조한다. 적용·삭제의 `refresh`는 후보 재판정과 기존 선택 만료를 함께 수행하므로 이전 확인창을 재사용하지 않는다. 원본 높이가 있으면 삭제 후 그 값으로 판단하고, 이 합성 예시처럼 원본도 없으면 미확인으로 돌아간다.
+
+위 fake 테스트의 거절은 REJECTED·실패이며 성공이 아니다. `ParkingNavigationTest.rejectionSimulationAndExceptionAreNotSuccess`의 거절·예외·시연 구분과 대조한다. 현재 화면의 `SampleTrip.SimulatedNavigation`은 SIMULATED를 반환하므로 **“시연 요청 완료”**이며 실제 내비 수락이나 길안내 시작 증거가 아니다. 이 표는 소스·assertion 대조이며 실행 통과·Windows 화면 관측 기록이 아니다.
 
 ## 총높이 보완 — 현행 절차 (소스 대조일 2026-11-09)
 
