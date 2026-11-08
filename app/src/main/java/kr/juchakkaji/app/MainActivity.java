@@ -34,14 +34,11 @@ public final class MainActivity extends Activity {
 
     private final ExecutorService carReader = Executors.newSingleThreadExecutor();
     private ParkingNavigation navigation;
-    private VehicleProfile vehicle = VehicleProfile.UNKNOWN;
-    private int readGeneration;
     private final VehicleHeight totalHeight = new VehicleHeight();
     private final Handler vehicleHandler = new Handler(Looper.getMainLooper());
-    private final VehicleReadResult.Session vehicleSession = new VehicleReadResult.Session();
+    private final VehicleRefreshState vehicleState = new VehicleRefreshState();
     private Runnable pendingVehicleRetry;
     private Runnable pendingVehicleExpiry;
-    private boolean readingVehicle;
     private Priority priority = Priority.ATTACHED_FIRST;
     private VisitQuoteState quote = new VisitQuoteState(120);
 
@@ -111,69 +108,69 @@ public final class MainActivity extends Activity {
     protected void onStart() {
         super.onStart();
         totalHeight.start();
-        int generation = ++readGeneration;
-        readingVehicle = true;
-        vehicle = VehicleProfile.UNKNOWN;
+        vehicleState.activate();
+        startVehicleRead();
+    }
+
+    private void startVehicleRead() {
+        if (!vehicleState.start(SystemClock.uptimeMillis())) return;
+        int generation = vehicleState.generation();
+        // UNKNOWN + refresh immediately expires every previously opened selection.
         refresh();
         vehicleHandler.removeCallbacksAndMessages(null);
         pendingVehicleRetry = null;
-        vehicleSession.start(generation, SystemClock.uptimeMillis());
         pendingVehicleExpiry = () -> {
             if (isDestroyed()) return;
-            if (vehicleSession.expire(generation, SystemClock.uptimeMillis())
-                    == VehicleReadResult.Session.Action.EXPIRE) finishVehicleRead(VehicleProfile.UNKNOWN);
+            if (vehicleState.expire(generation, SystemClock.uptimeMillis())
+                    == VehicleReadResult.Session.Action.EXPIRE) finishVehicleRead();
         };
-        vehicleHandler.postAtTime(pendingVehicleExpiry, vehicleSession.deadline());
+        vehicleHandler.postAtTime(pendingVehicleExpiry, vehicleState.deadline());
         readVehicle(generation, 0);
     }
 
     private void readVehicle(int generation, int attempt) {
-        if (!vehicleSession.isCurrent(generation) || isDestroyed()) return;
-        if (vehicleSession.expire(generation, SystemClock.uptimeMillis())
+        if (!vehicleState.isCurrent(generation) || isDestroyed()) return;
+        if (vehicleState.expire(generation, SystemClock.uptimeMillis())
                 == VehicleReadResult.Session.Action.EXPIRE) {
-            finishVehicleRead(VehicleProfile.UNKNOWN);
+            finishVehicleRead();
             return;
         }
+        if (!vehicleState.beginRead(generation, attempt)) return;
         var context = getApplicationContext();
         carReader.execute(() -> {
             VehicleReadResult result = AndroidVehicleInfo.read(context);
             vehicleHandler.post(() -> {
-                if (generation != readGeneration || isDestroyed()) return;
-                VehicleReadResult.Session.Action action = vehicleSession.accept(generation, attempt, result, SystemClock.uptimeMillis());
+                if (isDestroyed()) return;
+                VehicleReadResult.Session.Action action = vehicleState.accept(generation, attempt, result, SystemClock.uptimeMillis());
                 if (action == VehicleReadResult.Session.Action.IGNORE) return;
                 if (action == VehicleReadResult.Session.Action.RETRY) {
                     pendingVehicleRetry = () -> {
-                        if (!vehicleSession.isCurrent(generation) || isDestroyed()) return;
+                        if (!vehicleState.isCurrent(generation) || isDestroyed()) return;
                         pendingVehicleRetry = null;
                         readVehicle(generation, 1);
                     };
                     vehicleHandler.postDelayed(pendingVehicleRetry, VehicleReadResult.Session.RETRY_DELAY_MS);
                     return;
                 }
-                finishVehicleRead(action == VehicleReadResult.Session.Action.EXPIRE
-                        ? VehicleProfile.UNKNOWN : result.profile());
+                finishVehicleRead();
             });
         });
     }
 
-    private void finishVehicleRead(VehicleProfile profile) {
+    private void finishVehicleRead() {
         if (pendingVehicleRetry != null) vehicleHandler.removeCallbacks(pendingVehicleRetry);
         if (pendingVehicleExpiry != null) vehicleHandler.removeCallbacks(pendingVehicleExpiry);
         pendingVehicleRetry = null;
         pendingVehicleExpiry = null;
-        vehicle = profile;
-        readingVehicle = false;
         refresh();
     }
 
     private void stopVehicleRead() {
         totalHeight.stop();
-        readGeneration++;
-        vehicleSession.stop();
+        vehicleState.stop();
         vehicleHandler.removeCallbacksAndMessages(null);
         pendingVehicleRetry = null;
         pendingVehicleExpiry = null;
-        readingVehicle = false;
     }
 
     @Override
@@ -203,11 +200,11 @@ public final class MainActivity extends Activity {
         quote.syncVisit(navigation.visitVersion());
         navigation.invalidateSelections();
         destination.setText(navigation.visit() == null ? "목적지 없음" : navigation.visit().name());
-        List<Option> options = navigation.options(totalHeight.effectiveMm(vehicle), vehicle.widthMm(), vehicle.drive(), quote.stayMinutes(), quote.purchaseDiscount(), priority);
-        RecommendationExplanation explanation = RecommendationExplanation.create(vehicle, totalHeight, readingVehicle, options, priority);
-        setStatus(readingVehicle ? "차량 정보 확인 중"
+        List<Option> options = navigation.options(totalHeight.effectiveMm(vehicleState.vehicle()), vehicleState.vehicle().widthMm(), vehicleState.vehicle().drive(), quote.stayMinutes(), quote.purchaseDiscount(), priority);
+        RecommendationExplanation explanation = RecommendationExplanation.create(vehicleState.vehicle(), totalHeight, vehicleState.reading(), options, priority);
+        setStatus(vehicleState.reading() ? "차량 정보 확인 중"
                 : options.isEmpty() ? "시설 정보 없음"
-                : totalHeight.effectiveMm(vehicle) == null ? "차량 높이 확인 필요"
+                : totalHeight.effectiveMm(vehicleState.vehicle()) == null ? "차량 높이 확인 필요"
                 : requestableCount(options) == 0 ? "입구 안내 가능한 주차장 없음" : "");
         ParkingNavigation.Receipt last = navigation.lastRequest();
         receipt.setVisibility(last == null ? View.GONE : View.VISIBLE);
@@ -218,7 +215,7 @@ public final class MainActivity extends Activity {
             receipt.setOnClickListener(null);
         }
         list.removeAllViews();
-        if (readingVehicle) return;
+        if (vehicleState.reading()) return;
         for (int index = 0; index < options.size(); index++) {
             Option option = options.get(index);
             if (index == 0 && option.requestAvailability().available()) addRecommendation(option, explanation);
@@ -304,7 +301,7 @@ public final class MainActivity extends Activity {
                 + " (" + (lot.heightLimitMm() == null ? "미확인" : lot.heightLimitMm() + "mm") + ")"
                 + "\n" + explanation.vehicleDetails()
                 + "\n" + lot.widthDetails()
-                + (vehicle.model().isEmpty() ? "" : "\n차량 " + vehicle.model())
+                + (vehicleState.vehicle().model().isEmpty() ? "" : "\n차량 " + vehicleState.vehicle().model())
                 + "\n차량 판정: " + option.fit() + " · " + option.reason()
                 + "\n사용자 선택: " + (option.excluded() ? "이번 방문 제외" : "제외 없음")
                 + "\n" + option.requestAvailability().reason() + "\n\n" + lot.provenance();
@@ -325,6 +322,7 @@ public final class MainActivity extends Activity {
                         })
                 .setNegativeButton("취소", null))));
         body.addView(action("총높이 보완", false, this::showTotalHeight));
+        body.addView(action("차량 정보 다시 확인", false, this::startVehicleRead));
         ScrollView scroll = new ScrollView(this);
         scroll.addView(body);
         AlertDialog.Builder details = dialog().setTitle(lot.name()).setView(scroll)
