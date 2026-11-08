@@ -6,14 +6,17 @@
 
 실제 런타임 리허설에서는 AAOS 속성으로 차종과 연료 유형이 수신되는지, 외부 치수를 지원하는지, 높이 제한과 전기차 정책에 따라 예상한 후보가 뜨는지를 확인한다. 목적지와 주차장 대안은 시연값이다. 아래 이전 단계 기록은 당시의 합성 시나리오다.
 
-## 첫 APK의 30초 시연
+## 현재 앱 리허설 절차 (소스 대조일 2026-11-08)
 
-1. 앱을 연다. 방문지는 코엑스몰 시연 입력이다. 차량 높이 1.85 m, 체류 시간 2시간과 구매 할인 조건을 확인한다.
-2. 코엑스 카드에서 높이 제한 2.2 m, 기본 예상 12,000원, 대상 영수증 조건 충족 시 예상 0원과 요청 가능한 후보 2곳을 보여준다.
-3. 루프박스 프로필을 켠다. 2.25 m가 표시되고 코엑스는 높이 제한 초과로 내려간다. 대안 A(예상 6,000원)가 위로 올라오며 요청 가능한 후보 1곳이 표시된다. 대안 B에는 높이 확인 필요·입구 정보 미확인으로 선택 불가 사유가 표시된다.
-4. 대안 A의 입구 경로 요청을 연다. 취소하면 요청이 없다. 다시 열어 확인하면 “시연 어댑터 요청 처리 · 실제 길안내 시작 아님”을 확인한다. 확인창이 닫힌 뒤 “마지막 요청” 영역에서 스타필드 코엑스몰 방문 목적지, 대안 A 입구 (시연 좌표), 37.51400·127.06100과 위 시연 결과를 함께 확인한다.
+이 절은 향후 화면 리허설 대본이며 실행 관측 기록이 아니다. 차량 수치를 화면에서 입력하는 단계는 없다.
 
-첫 APK의 실제 동작 범위는 카드 판단, 요금 계산, 순서 변경과 시연 어댑터 요청 처리다. 대안과 좌표는 시연값이다. 위 절차는 이후 에뮬레이터 설치 리허설용이며, 후보 `1b3e2716204f023c2adabdec7d4839be3503b074`의 보고된 CI 성공은 [기획서의 후보별 검증 상태](../contest-brief.md#후보별-검증-상태)에 기록되어 있다. 설치·화면 동작을 관측한 증거는 아니다.
+1. 앱을 연다. `onCreate`는 시연 목적지 **스타필드 코엑스몰**을 설정한다. 최초 요금 조건은 120분·구매 할인 미적용이다. `onStart` 조회 동안 “차량 정보 확인 중”을 기다린다.
+2. 조회 결과를 확인한다. 종료 후 **“차량 높이 확인 필요”**라면 입구 요청 불가다. 후보 행을 눌러 상세·요금 조건까지만 보고 요청 단계로 진행하지 않는다. 높이를 받았어도 요청 가능 후보가 없으면 “입구 안내 가능한 주차장 없음”으로 요청을 중단한다. 후보 수 숫자는 화면에 표시되지 않는다(`refresh`).
+3. 추천 카드의 **“상세”** 또는 다른 후보 행을 누른다. 상세에서 입구 높이 제한·차량 높이·판정 사유·자료 출처를 읽는다. **“요금 조건”**에서 **“2시간 기준 (해제 시 1시간)”**, **“구매 할인 조건 충족 가정”**을 확인하고 **“적용”**으로 반영하거나 **“취소”**한다. 할인은 실제 영수증 검증이 아닌 가정이다(`showDetails/showQuoteSettings`).
+4. 요청 가능한 경우만 추천 카드의 **“입구 안내 ↗”** 또는 상세의 **“입구 안내”**를 누른다. **“이 입구로 안내할까요?”** 확인창에 입구 이름과 “시연 경로 요청”이 나온다. **“취소”**하면 요청하지 않는다. 다시 선택해 **“시연 요청”**을 누르면 선택한 입구로 한 번 요청하고 결과 **“시연 요청 완료”**를 기대한다. 조건이 바뀐 선택은 “조건이 바뀌었습니다. 입구를 다시 선택하세요.”로 처리한다(`confirmPreview`).
+5. 확인창이 닫힌 뒤 목록 밖 **입구 이름 · 결과 요약**을 누른다. **“마지막 요청”** 상세의 방문지·입구·좌표·결과를 확인하고 **“닫기”**를 누른다(`refresh/showReceipt/routeStatus`). 기록이 없으면 이 요약은 숨겨진다.
+
+해설: 실제 길안내 시작이 아니라 시연 어댑터 요청 처리다. 차량 조건별 예상 요금·순서는 아래 공통 표를 참고하며 해당 차량 신호가 실제 수신되었다고 가정하지 않는다. 후보 CI 보고와 Windows 화면 관측은 별개다. 제출 단계는 [제안서의 제출 단계와 요구 자료](../contest-brief.md#제출-단계와-요구-자료)를 따른다. 1차는 제안서·서명 동의서 필수, 적격 GitHub/APK·프로토타입 선택이며 최종 PT는 작동 앱 시연 필수다.
 
 ## 실제 NaviHelper 연동 이후
 
@@ -27,59 +30,46 @@
 
 과거 로컬 Gradle 시도는 도구 부재로 실행되지 않았다 (`gradle: command not found`; 당시 Java 컴파일 도구도 PATH에 없음). 이는 역사적 환경 기록이며 후보의 보고된 CI 성공과 구분한다. 문서 정정을 포함한 이후 변경 HEAD는 별도 검증 대상이다. Windows 설치·화면 관측, 실제 NaviHelper 콜백과 실제 신호에 따른 사용자 결과, 차량·음성·음향 시험 및 릴리스 증거는 미확보다. Windows·실차 검증은 별도 승인 범위이며, 요청 ID를 SDK 이벤트에 연결할 수 있는지도 실제 연동 전 확인해야 한다.
 
-## 입구 정보까지 포함한 선택 판단 (2026-11-08 로컬 소스 대조)
+## 현재 판단·조건별 기대 결과 (소스 대조일 2026-11-08)
 
-`ParkingPlan.Option.requestAvailability()`가 입차 조건 충족과 입구 존재를 함께 판정한다. 정렬·경로 요청·화면 버튼과 선택 불가 사유가 이 판정을 사용한다. 요청 가능한 후보를 먼저 표시하고 그 안에서는 예상 요금, 부설 우선순위를 유지한다. 입구 누락은 입차 금지가 아닌 “입구 정보 미확인”이다. 목록 위에는 요청 가능한 후보 수를 표시하며, 빈 목록은 “시설 정보 없음”, 시설이 있어도 모두 요청 불가이면 “요청 가능한 입구 없음”으로 구분한다. 두 경우 후보 수는 0이고 경로 요청은 없다. 사용자의 확인 이후에만 어댑터에 요청하는 흐름을 유지한다.
+최초 시작은 **120분·구매 할인 미적용**이다. 차량은 `onStart`에서 UNKNOWN으로 초기화한 뒤 AAOS에서 다시 조회한다. 고정 차량 높이나 비전기차 기본값을 넣지 않는다. `ParkingPlan.compare`의 정렬은 요청 가능 여부 → Fit → 부설 우선 → 예상 요금 순이다. 입구 누락은 명시적 입차 금지가 아니라 “입구 정보 미확인”이다. `candidateSummary`의 후보 수·빈 목록 문구는 JVM 테스트 대상이며 현재 `MainActivity.refresh`는 이를 화면에 표시하지 않는다. 화면 상태는 조회 중 “차량 정보 확인 중”, 조회 종료 후 높이 누락이면 “차량 높이 확인 필요”, 높이는 있지만 요청 가능 0건이면 “입구 안내 가능한 주차장 없음”이다.
 
-| 사례와 근거 | 기대 결과 (화면 관측 아님) |
-| --- | --- |
-| 기존 `SampleTrip.LOTS`: 1.85 m·비전기차·120분·할인 충족 | 입구 시연 좌표가 있는 코엑스 예상 0원 우선, 요청 가능한 후보 2곳 |
-| 기존 시연에서 높이만 2.25 m로 변경 | 대안 A 예상 6,000원 우선, 요청 가능한 후보 1곳. 코엑스는 높이 제한 초과로 선택 불가. B는 높이 확인 필요·입구 정보 미확인 |
-| `ParkingPlanTest.entranceReadyLotPrecedesFreeLotWithoutEntrance`: 합성 테스트 전용 시설 두 곳 | 입차 조건 충족·입구 있음·6,000원이 입차 조건 충족·입구 없음·0원보다 먼저. 후자는 입구 정보 미확인으로 요청 없음 |
-| `ParkingPlanTest.allUnavailableLotsHaveNoRequestableEntrance`: 합성 테스트 전용 제한·미확인·입구 누락 시설 | 요청 가능한 후보 0곳, 요청 가능한 입구 없음, 모든 경로 요청 비어 있음 |
-| `ParkingPlanTest.emptyLotsHaveNoFacilityInformation`: 합성 테스트 전용 빈 목록 | 요청 가능한 후보 0곳, 시설 정보 없음, 경로 요청 없음 |
+아래 표는 두 문서에 동일하게 적용한다. 합성 행의 수치는 기존 입력·요금식·assertion을 대조한 계산 결과이며 화면의 후보 수 표시나 실제 차량 신호 관측을 뜻하지 않는다. 차량 조건을 바꾸는 수동 화면 조작은 없다.
 
-새 합성 사례는 앱의 기존 코엑스·루프박스 시연 데이터에 추가하지 않았다. 기존 높이 경계값·전기차 정책 미확인과 명시적 금지·할인 테스트를 유지한다. 위 기대 결과는 소스와 테스트 assertion 대조이며 실행 통과, 설치 화면 관측, 실제 SDK 신호 또는 사용자 효과 실측의 증거가 아니다. 실제 Pleos 신호에 따른 사용자 효과는 미관측이다.
-
-이번 변경 작업 트리의 로컬 검증: `gradle --offline --no-daemon --console=plain :app:testPleosDebugUnitTest :app:assemblePleosDebug`를 시도했으나 `gradle: command not found`(종료 127)로 미실행이다. PATH에서 `java`·`javac`도 확인되지 않았다. 도구 설치나 의존성 변경은 하지 않았다. 이번 소스에 대응하는 테스트 XML·unsigned APK가 없어 테스트 실패·오류 0건 및 빌드 성공 기준은 미충족이다. 과거 후보의 CI·XML·APK를 이번 결과로 대체하지 않는다. `git diff --check`는 통과했고 기준 `b8af43df19b58ff22e41c92f1a610eb3cdfe9dab` 대비 변경은 지정 다섯 파일에 한정한다. Windows 에뮬레이터 설치·화면, 실제 SDK 콜백·실차·사용자 효과는 여전히 미관측이다.
-
-## 차량·방문 입력 복원 (2026-11-08 소스 대조)
-
-화면 재생성 뒤 루프박스·전기차·구매 할인·체류 시간을 다시 입력하지 않아도 같은 주차 판단을 유지하도록 구현했다. `DemoProfile`은 Android 비의존 입력 상태와 네 저장 키를 정의한다. `MainActivity`는 `onSaveInstanceState`에서 네 값을 저장하고, `onCreate`에서 위젯과 첫 후보 계산 전에 복원한다. 체크박스 표시, 시간 버튼 문구와 `navigation.options`는 같은 복원 상태를 사용한다. 선택·확인 대화상자·경로 요청 결과는 저장하지 않으며 복원으로 요청을 자동 재전송하지 않는다.
-
-| 재생성 전 입력 → 복원 후 동일 입력 | 전후 동일해야 할 기대 결과 (화면 관측 아님) | JVM assertion |
+| 구분·조건 | 기대 결과 | 기존 소스·테스트 근거 |
 | --- | --- | --- |
-| 저장값 없음: 1.85 m·비전기차·할인 적용·120분 | 기존 최초 시작값 유지, 코엑스 예상 0원 우선 | `missingStateUsesOriginalFirstStartDefaults` |
-| 루프박스·전기차·할인 각 참/거짓 × 60/120분, 총 16조합 | 네 값과 `ParkingPlan.compare`의 전체 결과가 왕복 전후 동일 | `allSixteenInputCombinationsRoundTripWithSamePlan` |
-| 2.25 m·비전기차·할인 적용·120분 | 코엑스 RESTRICTED·경로 요청 생성 불가, 대안 A 예상 6,000원 첫 후보 | `restoredRoofBoxKeepsCoexRestrictedAndAlternativeFirst` |
-| 1.85 m·전기차·할인 적용·120분 | 코엑스 전기차 조건 NEEDS_CHECK·경로 요청 생성 불가 | `restoredElectricProfileKeepsUnknownPolicyUnrequestable` |
-| 1.85 m·비전기차·할인 해제·60분 | 코엑스 예상 6,000원, 대안 A 예상 3,000원 | `restoredNoDiscountAndOneHourKeepFullQuotes` |
+| 현재 화면 조작: 최초 시작 → 조회 종료, 높이 미확인 | “차량 높이 확인 필요”; 입구 요청 불가. 상세·요금 조건까지만 확인 | `MainActivity.onCreate/onStart/refresh/showDetails`, `ParkingPlan.evaluate` |
+| JVM 합성: 높이 미확인·NON_ELECTRIC·120분·할인 미적용 | 요청 가능 0건; 높이 확인 필요로 요청 차단 | `VehicleProfileTest.missingOrInvalidDimensionsCannotCreateARequestableOption`, `VehicleReadResultTest.twoDisconnectedReadsTerminateUnknownWithoutDemoOrFuelAssumptions` |
+| JVM 합성: 1850mm·NON_ELECTRIC·120분·할인 미적용 | 코엑스 12,000원이 대안 A 6,000원보다 먼저; 요청 가능 2건. 부설 우선 정렬 | `ParkingPlanTest.noPurchaseConditionShowsFullPriceAndKeepsUsableOnSiteOptionFirst`, `ParkingPlan.compare`, `SampleTrip.LOTS` 요금식 |
+| JVM 합성: 1850mm·NON_ELECTRIC·120분·할인 적용 | 코엑스 예상 0원 우선, 기본 요금 12,000원; 요청 가능 2건 | `ParkingPlanTest.purchaseConditionMakesAttachedLotFirst`, `SampleTrip.LOTS` |
+| JVM 합성: 2250mm·NON_ELECTRIC·120분·할인 미적용 | 대안 A 6,000원 우선, 요청 가능 1건; 코엑스 높이 제한 초과로 요청 불가 | `VehicleProfileTest.hardwareHeightAndWidthOverrideCatalogAndTallVehicleUsesAlternative`, `VehicleReadResultTest.disconnectedThenSuccessAutomaticallyRecalculatesWithHardware`, `ParkingPlan.evaluate`, `SampleTrip.LOTS` |
+| JVM 합성: 1850mm·ELECTRIC·120분·할인 미적용 | 대안 A 6,000원 우선, 요청 가능 1건; 코엑스 전기차 정책 미확인으로 요청 불가(명시적 금지와 구별) | `VehicleProfileTest.electricAndAmbiguousFuelDoNotBypassUnknownEvPolicy`, `ParkingPlanTest.unknownEvPolicyAndEvBanAreDifferent`, `ParkingPlan.evaluate`, `SampleTrip.LOTS` |
+| JVM 합성: 입구 없는 무료 시설·입구 있는 유료 시설 / 모두 요청 불가 / 빈 목록 | 각각 입구 있는 시설 우선·1건 / 0건 / 0건; 후보 요약은 테스트 결과용 문구 | `ParkingPlanTest.entranceReadyLotPrecedesFreeLotWithoutEntrance`, `allUnavailableLotsHaveNoRequestableEntrance`, `emptyLotsHaveNoFacilityInformation` |
+| 현재 화면 조작: 가능한 입구 선택 → 취소 또는 “시연 요청” | 확인 전 요청 0건; 취소는 전송 없음. 확인 후 선택 좌표로 1회, “시연 요청 완료” | `MainActivity.confirmPreview/routeStatus`, `ParkingNavigationTest.confirmationAloneSendsExactlyOnceWithChosenCoordinates`, `SampleTrip.SimulatedNavigation` |
+| 향후 실제 AAOS 관측: 조회·재조회·재생성·요청 결과 | 실제 반환 높이·연료와 위 판단의 일치, 오래된 조회 배제, 기록 초기화 등을 관측해야 함. 현재 미관측 | `MainActivity.onStart/onStop/onSaveInstanceState`, `VehicleReadResultTest`의 세션 합성 검사; 실제 Handler·Activity·SDK 관측의 대체 증거 아님 |
 
-근거: `DemoProfileTest.java`의 새 assertion과 기존 `SampleTrip.LOTS`를 2026-11-08 로컬에서 대조했다. 시설 수치의 출처·확인일은 기존 `SampleTrip.java` 표기를 따르며 외부 재확인은 하지 않았다. 대안 A와 입구 좌표는 시연값, 코엑스 전기차 조건은 미확인이다. 테스트는 Map 저장·복원과 주차 판단을 합성 검증하도록 작성했으며 Android Bundle·생명주기·위젯 실행 검증을 대신하지 않는다.
+시설 공개값의 출처·확인일은 `SampleTrip.java`의 코엑스 공식 높이·요금·할인 안내(2026-11-08 확인)를 따른다. 이번에는 외부 재확인하지 않았다. 입구 좌표와 대안 A는 시연값이며 대안 B는 높이·입구 정보가 누락되어 요청할 수 없다. 합성 assertion 대조는 이번 HEAD의 테스트 실행 성공을 뜻하지 않는다.
 
-실제 재생성 리허설은 미관측이다. 향후 별도 승인된 Windows 환경에서 각 사례를 입력하고 화면 재생성 전후 체크박스·시간 문구·후보·요금을 비교하며, 확인 대화상자와 요청 결과가 복원되지 않고 자동 요청도 없는지 관측해야 한다. Android 화면 재생성·실제 Pleos 신호·사용자 효과를 이번 작업에서 관측했다고 주장하지 않는다.
+## 현재 요청 기록과 재생성
 
-이번 profile-restore 작업의 로컬 실행: `gradle --offline --no-daemon --console=plain :app:testPleosDebugUnitTest :app:assemblePleosDebug`는 `gradle: command not found`(종료 127)로 미실행이다. PATH의 `java`·`javac`도 없다. 설치·의존성 변경은 하지 않았다. 변경 소스에 대응하는 실행 테스트 XML·unsigned APK가 없으므로 실패·오류·건너뜀 0건과 빌드 성공이라는 수용 기준 6은 미충족이다. 과거 후보의 XML·APK·CI 보고를 이번 실행 증거로 사용하지 않는다. `git diff --check`는 통과했다. 기준 `589948ea1ffe72992434f36c9f264cfa5834d703` 대비 추적 파일 diff와 신규 파일 목록을 합쳐 지정 다섯 파일만 변경했으며 주행 제한·서명·권한·의존성·워크플로·README 아티팩트 계약은 변경하지 않았다.
+`MainActivity.refresh`는 요청 전에는 기록을 숨긴다. 확인 후에는 목록 밖에 **입구 이름 · 시연 요청 완료** 요약을 표시한다. 이 요약을 누르면 `showReceipt`의 **“마지막 요청”** 상세에서 방문지·입구·좌표·결과를 확인한다. 예를 들어 대안 A 요청은 스타필드 코엑스몰 / 대안 A 입구 (시연 좌표) / 37.51400, 127.06100 / 시연 요청 완료다. 코엑스 입구의 시연 좌표는 37.51200, 127.06000이다. 해설: 시연 어댑터 처리이며 실제 길안내 시작이 아니다. 이 해설은 화면 결과 문구가 아니다.
 
-## 마지막 입구 요청 기록 (route-receipt · 2026-11-08 소스 대조)
+일반 조건 갱신은 과거 기록을 유지한다. 새 방문지는 기록을 지우고 요청 ID가 연결된 입구 되울림은 원래 방문지와 기록을 유지한다. 근거는 `ParkingNavigationTest.simulatedAlternativeReceiptStartsEmptyAndSurvivesConditionChanges`, `echoesKeepReceiptAndNewVisitClearsIt`, `visitDuringRequestCannotReceiveOldOutcome`이다. 실패 결과는 `routeStatus`에서 “입구 경로 요청 실패”, 실제 수락 상태는 “내비 요청 수락”으로 구분한다. 현재 시연 어댑터는 SIMULATED만 반환하므로 실패·실제 수락의 화면 관측을 주장하지 않는다. 거절·예외의 계약 근거는 `rejectionReplacesPreviousReceiptAndDuplicateDoesNothing`, `exceptionReplacesPreviousReceiptAndDuplicateDoesNothing`이다.
 
-확인창을 닫은 뒤에도 후보 목록 밖의 “마지막 요청 · 과거 확인 기록 (현재 후보 판단과 별개)” 영역에서 방문지·입구 이름·좌표·처리 결과를 함께 확인하도록 했다. 초기 상태와 선택/취소만 한 상태에는 “마지막 요청 없음”이며 호출은 0건이다. 2.25 m·비전기차·120분·할인 적용으로 대안 A를 확인하면 기대 표시는 방문 목적지 **스타필드 코엑스몰**, 차량 도착점 **대안 A 입구 (시연 좌표)**, 좌표 **37.51400, 127.06100**, **시연 어댑터 요청 처리 · 실제 길안내 시작 아님**이다. 이 값은 `SampleTrip`의 시연값과 대조했으며 실제 시설 입구나 화면 관측의 주장이 아니다.
+Activity 재생성에서는 **체류 시간과 구매 할인 두 값만 복원**한다. `onSaveInstanceState`가 두 키를 저장하고 `onCreate`가 읽는다. 차량은 `onStart`에서 다시 조회하며, 요청 기록·선택·확인창은 복원하지 않고 자동 재전송도 하지 않는다. 실제 Android 재생성은 미관측이며 소스 경로 대조만 수행했다.
 
-일반 갱신·차량 조건 변경 후에도 같은 과거 기록이 남는다. 현재 추천에 대한 성공 표시로 해석하지 않는다. 새 방문지를 받으면 기록을 비우며 입구 되울림은 원래 방문지와 기록을 유지한다. Activity 재생성에서는 입력 네 값만 복원하고 마지막 요청은 복원·재전송하지 않는다. 승인된 향후 화면 리허설에서 확인창이 닫힌 뒤 위 네 항목, 조건 변경 후 과거 기록 문구, 재생성 후 기록 없음을 확인해야 한다.
+## 이전 구현 기록 — 현재 절차에 적용하지 않음
 
-화면의 기본 어댑터는 `SIMULATED`만 반환한다. `ACCEPTED`의 “내비 요청 수락”과 `REJECTED`의 “입구 경로 요청 실패”는 별도 결과 문구다. 거절·예외는 fake 계약 테스트의 검증 대상으로, 앱 화면에서 실패나 실제 SDK 수락을 관측했다는 뜻이 아니다.
+아래 항목은 과거 profile-restore·route-receipt 등 후보에 적용했던 설명의 이력이다. 현재 후보의 기능이나 현존 테스트 근거로 사용하지 않는다.
 
-| 수용 항목 | 이번 소스의 검사 근거 (실행 결과 아님) |
-| --- | --- |
-| 1·2: 확인 전 기록 없음·0건, 대안 A 확인 후 동일 요청/결과·1건 | `simulatedAlternativeReceiptStartsEmptyAndSurvivesConditionChanges`: options → select → confirm, 방문지·입구·두 좌표·SIMULATED assertion |
-| 3: 거절·예외로 교체, 중복 확인 불변 | `rejectionReplacesPreviousReceiptAndDuplicateDoesNothing`, `exceptionReplacesPreviousReceiptAndDuplicateDoesNothing`: 이전 ACCEPTED와 다른 새 요청·REJECTED, 2건 유지·기록 객체 유지 assertion |
-| 4: 되울림 유지·새 방문지 초기화·호출 중 방문지 교체 | `echoesKeepReceiptAndNewVisitClearsIt`, `visitDuringRequestCannotReceiveOldOutcome`: 방문지·기록·상태·요청 횟수 assertion. `receive`는 되울림 검사 뒤 초기화하고 `confirm`은 어댑터 반환/예외 처리 뒤 기존 generation 검사 안에서만 기록한다. |
-| 5: 같은 기록에서 외부 표시·복원 제외 | `MainActivity.refresh`가 한 Receipt에서 요청과 결과를 읽는다. 체크박스·시간 리스너의 refresh는 기록을 지우지 않는다. Bundle 저장/복원은 기존 DemoProfile 네 키뿐이다. |
-| 6: 리허설·기획서 기대값 일치 | 두 문서의 이 절은 같은 SampleTrip 시연값과 위 테스트를 기준으로 한다. |
+- 수동 루프박스·전기차 토글, 1.85 m 고정 시작, 최초 할인 적용은 이전 시연 입력이었다. 현재 일반 화면에는 차량 수동 토글이 없다.
+- 삭제된 `DemoProfile`·`DemoProfileTest`의 네 값·네 키 복원 및 16조합 왕복 검사는 과거 profile-restore 기록이다. 현재 복원 근거는 위 MainActivity 두 값 경로뿐이다.
+- “마지막 요청 없음”, “마지막 요청 · 과거 확인 기록 (현재 후보 판단과 별개)”, “시연 어댑터 요청 처리 · 실제 길안내 시작 아님”을 화면에 기대했던 기록은 이전 UI 설명이다. 현재 요약·상세·결과 문구는 위 절을 따른다.
+- 당시 selection-ready(`b8af43df19b58ff22e41c92f1a610eb3cdfe9dab` 기준), profile-restore(`589948ea1ffe72992434f36c9f264cfa5834d703` 기준), route-receipt(`d7e43092e48d140d5fb363f2d69ae4ef73291c53` 기준)의 로컬 Gradle 시도는 `gradle: command not found`(127)로 미실행이며 Java 도구도 없었다는 기록이다. 당시 지정 다섯 파일 diff 확인은 이번 두 문서 변경의 검증과 별개다. 과거 후보의 CI·XML·APK를 이번 결과로 사용하지 않는다.
 
-로컬 실행 증거: 요청된 `gradle --offline --no-daemon --console=plain :app:testPleosDebugUnitTest :app:assemblePleosDebug`는 `gradle: command not found`로 종료 127이다. 로그는 `/tmp/route-receipt-gradle.log`에 있다. PATH에서 java·javac도 찾지 못했다. 설치하지 않았으며 이번 소스의 실행 XML·unsigned APK가 없으므로 수용 항목 7(테스트 성공·실패/오류/건너뜀 0·빌드 성공)은 **미충족**이다. 과거 CI는 대체 증거가 아니다.
+## 이번 문서 정정의 검증 범위
 
-수용 항목 8의 로컬 diff 검사: `git diff --check` 통과. 기준 `d7e43092e48d140d5fb363f2d69ae4ef73291c53` 대비 변경은 ParkingNavigation.java·MainActivity.java·ParkingNavigationTest.java·showcase/REHEARSAL.md·contest-brief.md 다섯 파일이며 신규 파일은 없다. 주행 제한·서명·권한·의존성·워크플로·자격 증명·배포·README 아티팩트 계약은 변경하지 않았다. Windows 에뮬레이터 설치/화면·실제 Pleos 신호/SDK 콜백·실차·음성/음향·사용자 효과는 미관측이다. 이번 변경은 로컬 소스 대조이며 런타임 증거 확보나 최종 시연 준비 완료를 뜻하지 않는다.
+소스 대조일은 **2026-11-08**이다. 문서만 수정하며 JVM 테스트·APK 빌드를 이번에 실행하지 않는다. `git diff --check`, 기준 `710601b33e96e3c182fe76618ec36de04bb1c042` 대비 경로·전체 diff, 상태 및 관련 문구 검색으로 지정 두 문서만 바뀌었는지 검증한다. 보고된 unsigned debug CI는 해당 과거 후보에 한정하며 새 HEAD 빌드 성공·제출 완료·실제 실행 관측의 주장을 추가하지 않는다. Windows 설치·화면·재생성, 실제 AAOS/Pleos 신호·SDK 콜백, 실차·음성·음향·공개 배포 증거는 미확보다.
 
 ## 차량 서비스 연결 지연 재조회 (vehicle-service-reconnect · 2026-11-08)
 
