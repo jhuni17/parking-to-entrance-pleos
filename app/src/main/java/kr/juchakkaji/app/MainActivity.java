@@ -305,8 +305,8 @@ public final class MainActivity extends Activity {
                 + "\n차량 판정: " + option.fit() + " · " + option.reason()
                 + "\n사용자 선택: " + (option.excluded() ? "이번 방문 제외" : "제외 없음")
                 + "\n" + option.requestAvailability().reason() + "\n\n" + lot.provenance();
-        if (lot.tariff() != null && !lot.tariff().purchaseRule().isEmpty()) {
-            text += "\n" + lot.tariff().purchaseRule();
+        if (lot.tariff() != null) {
+            text += "\n" + lot.tariff().discountText(quote.purchaseDiscount());
         }
         LinearLayout body = column();
         body.setPadding(dp(24), dp(8), dp(24), 0);

@@ -24,12 +24,41 @@ final class ParkingPlan {
     }
 
     record Tariff(int unitMinutes, int wonPerUnit, int purchaseFreeMinutes, String purchaseRule) {
+        Tariff {
+            purchaseRule = normalizedRule(purchaseRule);
+        }
+
+        private static String normalizedRule(String rule) {
+            if (rule == null) return "";
+            int start = 0;
+            int end = rule.length();
+            while (start < end && Character.isWhitespace(rule.charAt(start))) start++;
+            while (end > start && Character.isWhitespace(rule.charAt(end - 1))) end--;
+            return rule.substring(start, end);
+        }
+
+        boolean appliesPurchaseDiscount(boolean assumed) {
+            return assumed && purchaseFreeMinutes > 0 && !purchaseRule.isEmpty();
+        }
+
+        String discountText(boolean assumed) {
+            if (purchaseFreeMinutes > 0 && purchaseRule.isEmpty()) {
+                return "구매 할인 조건 미확인 · 할인 미적용";
+            }
+            if (!assumed) return "구매 할인 미적용";
+            if (!appliesPurchaseDiscount(assumed)) {
+                return "구매 할인 조건 충족 가정 · 선택 시설에 적용할 구매 할인 규칙 없음";
+            }
+            return "구매 할인 조건 충족 가정 · 선택 시설에만 적용: " + purchaseRule
+                    + " (실제 구매 검증 아님)";
+        }
+
         Integer quote(int stayMinutes, boolean qualifiesForPurchaseDiscount) {
             // Validate the whole tariff even when its discount is not selected.
             if (unitMinutes <= 0 || wonPerUnit < 0 || purchaseFreeMinutes < 0 || stayMinutes < 0) {
                 return null;
             }
-            long freeMinutes = qualifiesForPurchaseDiscount ? purchaseFreeMinutes : 0L;
+            long freeMinutes = appliesPurchaseDiscount(qualifiesForPurchaseDiscount) ? purchaseFreeMinutes : 0L;
             long billedMinutes = Math.max(0L, (long) stayMinutes - freeMinutes);
             long units = (billedMinutes + unitMinutes - 1L) / unitMinutes;
             long amount = units * wonPerUnit;

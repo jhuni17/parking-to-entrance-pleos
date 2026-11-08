@@ -417,3 +417,24 @@ Windows 설치·화면·Activity 수명주기, 실제 SDK 콜백·차량 신호�
 이번 체크아웃에는 Java·Gradle이 PATH에 없어 JVM 테스트와 APK 빌드는 실행하지 못했다. 도구 설치·커밋·푸시·네트워크 호출은 하지 않았다. 신규 테스트는 실행 전 assertion이며 기존 성공 후보로 대체 증명하지 않는다. 새 후보 커밋의 GitHub Actions에서 `testPleosDebugUnitTest`·`assemblePleosDebug`, 신규 VehiclePropertyReaderTest 및 기존 VehicleProfileTest·VehicleWidthTest·VehicleReadResultTest를 포함한 전체 XML의 실패·오류·건너뜀 0건을 확인해야 한다. 새 전체 SHA와 `source-sha.txt`·`pleos-build-<full SHA>` 일치, Gradle 로그·입력 해시·unsigned APK, README의 두 sha256sum 검사와 기존 패키지·ZIP·unsigned 검사, 기준 `53aed5c98ca707b486f12e74289150cc4f6ae088` 대비 새 HEAD 전체 diff·공백 검사·다섯 editPaths 제한은 새 후보 CI 증거 대기다.
 
 외부 사실은 기존 출처·확인일을 유지하며 이번에는 재확인하지 않았다. Windows 설치·화면·실제 SDK 콜백·차량 신호·실차·음성·음향의 관측 증거는 없다. 합성 source 검증 설계, Android 매핑 소스 대조, CI 실행 증거, 실제 런타임 관측을 구별한다. 1차 필수 제안서·서명 동의서, 선택 프로토타입·적격 GitHub/APK, 최종 PT 필수 작동 앱 시연은 별도 준비 대상이며 제출·시연 완료를 주장하지 않는다.
+
+## 구매 할인 조건 누락 검증 (discount-proof)
+
+`DiscountRuleTest`의 합성 기대값이다. 실제 시설 정책 변경이나 오류 주입 UI, SDK 콜백 관측 기록이 아니다. 코엑스 복사본의 구매 할인 설명만 null·빈 문자열·공백으로 바꾸고 기존 무료 120분은 유지한다. 조건 설명은 null을 빈 문자열로, 앞뒤 공백은 제거해 정규화한다. 할인 가정·양수 무료 시간·비어 있지 않은 조건을 모두 만족해야 차감한다. 조건 누락은 입차 제한이 아니며 등록 기본요금으로 비교한다.
+
+| 합성 AAOS 형태 입력·120분·구매 할인 가정 | 계산·추천·확인 기대값 |
+| --- | --- |
+| fromHardware: 1850mm·NON_ELECTRIC, 조건 누락 | 코엑스 기본·예상 모두 12,000원·MATCHES_RECORDED_RULES, 대안 A 6,000원, 요청 가능 2곳. 부설 우선은 코엑스, 요금 우선은 대안 A. 요금 우선 이유는 ‘요금 우선 · 예상 요금이 낮은 대안’ |
+| 같은 목록에서 높이만 2250mm | 두 기준 모두 코엑스 RESTRICTED·선택 불가, 대안 A 6,000원 우선·요청 가능 1곳. 이유는 ‘코엑스 지하주차장 · 높이 초과’ |
+| 1850mm·ELECTRIC / 높이 누락·NON_ELECTRIC | 전자는 코엑스 NEEDS_CHECK·선택 불가, 후자는 요청 가능 0곳·모두 선택 불가 |
+| 정상 조건 설명 | 120분 할인 0원, 121분 할인 1,500원, 할인 미선택 120분 12,000원. 두 기준 모두 120분 코엑스 우선 |
+
+시설 상세와 입구 확인창은 같은 `Tariff.discountText`를 사용한다. 양수 무료 시간에 조건이 없으면 **구매 할인 조건 미확인 · 할인 미적용**, 코엑스 확인 금액은 **120분 예상 12,000원**이다. 무료 시간 0인 대안 A는 **적용할 구매 할인 규칙 없음**, 확인 금액은 **120분 예상 6,000원**으로 구분한다. 정상 단가 0은 유효하며 기존 잘못된 요금·넘침의 미확인 처리는 유지한다. 차량값·출처는 상세에, 대안 이유는 최대 한 줄로 유지하며 첫 화면 구성은 유지한다.
+
+계산·설명·확인 모델 생성까지 fake 요청은 0건이다. 높이 갱신에 대응하는 무효화 후 이전 선택은 STALE이며 새 대안 A의 명시적 확인만 원래 방문지 ‘스타필드 코엑스몰’과 시연 좌표 **37.51400, 127.06100**으로 1건 요청한다. 입구 되울림은 원래 방문지를 유지하고 중복 확인은 추가 요청하지 않는다. ACCEPTED·REJECTED·예외에 의한 REJECTED·SIMULATED는 각각 구분한다.
+
+외부 시설 공개값·출처·확인일은 `SampleTrip`의 기존 **2026-11-08** 기록을 유지하며 이번에 외부 재확인은 하지 않았다. 조건 누락 복사본·차량 입력은 합성 검증, 대안 A와 좌표는 시연값, 할인은 구매 검증이 아닌 가정이다. 신규 테스트는 기존 `app/src/test` JUnit 대상이므로 `testPleosDebugUnitTest`에 포함된다. `TariffFallbackTest`·`ParkingNavigationTest`를 포함한 전체 XML은 새 후보 CI에서 확인해야 한다.
+
+이 체크아웃의 로컬 Java·Gradle·Android SDK 실행 환경은 확보되지 않아 테스트·APK 성공을 주장하지 않는다. 커밋·push·네트워크 실행은 이 작업 범위에서 금지되어 새 SHA의 GitHub Actions 검증은 대기다. 후속 새 커밋에서 기존 unsigned debug CI의 `testPleosDebugUnitTest`·`assemblePleosDebug`, 전체 XML 실패·오류·건너뜀 0, Gradle 로그·입력 해시·unsigned APK를 확인한다. `source-sha.txt`와 `pleos-build-<full SHA>`가 새 전체 SHA에 결합되어야 하며 README의 두 sha256sum 검사와 APK 패키지·ZIP·unsigned 검사, 기준 `acbe031b64ea7f0b82dc973459a06244373f646e` 대비 전체 diff·경로 범위를 대조한다. 기준 SHA 성공으로 대체하지 않는다. Windows 에뮬레이터·실차·실제 Pleos 런타임·Gleo 발화·음향 증거는 없다.
+
+제출 준비 구분은 유지한다. 1차 필수 제안서·서명 동의서, 선택 제출물, 최종 PT 작동 시연은 별도 준비·확인 대상이며 합성 assertion이나 unsigned debug CI가 실제 작동 시연을 대신하지 않는다.

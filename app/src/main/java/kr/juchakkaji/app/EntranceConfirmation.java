@@ -36,14 +36,10 @@ final class EntranceConfirmation {
     ParkingPlan.Entrance entrance() { return selection.request().entrance(); }
 
     String discountText() {
-        if (!purchaseDiscount) return "구매 할인 미적용";
         ParkingPlan.Tariff tariff = lot.tariff();
-        if (tariff == null) return "구매 할인 조건 충족 가정 · 선택 시설 할인 정보 미확인";
-        if (tariff.purchaseFreeMinutes() <= 0 || tariff.purchaseRule().isEmpty()) {
-            return "구매 할인 조건 충족 가정 · 선택 시설에 적용할 구매 할인 규칙 없음";
-        }
-        return "구매 할인 조건 충족 가정 · 선택 시설에만 적용: " + tariff.purchaseRule()
-                + " (실제 구매 검증 아님)";
+        if (tariff != null) return tariff.discountText(purchaseDiscount);
+        return purchaseDiscount ? "구매 할인 조건 충족 가정 · 선택 시설 할인 정보 미확인"
+                : "구매 할인 미적용";
     }
 
     String message() {
