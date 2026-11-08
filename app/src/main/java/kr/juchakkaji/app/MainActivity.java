@@ -53,6 +53,7 @@ public final class MainActivity extends Activity {
     private TextView status;
     private TextView receipt;
     private LinearLayout list;
+    private AlertDialog detailsDialog;
 
     @Override
     protected void onCreate(Bundle saved) {
@@ -171,10 +172,16 @@ public final class MainActivity extends Activity {
     }
 
     private void refresh() {
+        if (detailsDialog != null) {
+            detailsDialog.dismiss();
+            detailsDialog = null;
+        }
         navigation.invalidateSelections();
         destination.setText(navigation.visit() == null ? "목적지 없음" : navigation.visit().name());
         List<Option> options = navigation.options(vehicle.heightMm(), vehicle.drive(), stayMinutes, purchaseDiscount);
+        RecommendationExplanation explanation = RecommendationExplanation.create(vehicle, readingVehicle, options);
         setStatus(readingVehicle ? "차량 정보 확인 중"
+                : options.isEmpty() ? "시설 정보 없음"
                 : vehicle.heightMm() == null ? "차량 높이 확인 필요"
                 : requestableCount(options) == 0 ? "입구 안내 가능한 주차장 없음" : "");
         ParkingNavigation.Receipt last = navigation.lastRequest();
@@ -186,14 +193,15 @@ public final class MainActivity extends Activity {
             receipt.setOnClickListener(null);
         }
         list.removeAllViews();
+        if (readingVehicle) return;
         for (int index = 0; index < options.size(); index++) {
             Option option = options.get(index);
-            if (index == 0 && option.requestAvailability().available()) addRecommendation(option);
-            else addAlternative(option);
+            if (index == 0 && option.requestAvailability().available()) addRecommendation(option, explanation);
+            else addAlternative(option, explanation);
         }
     }
 
-    private void addRecommendation(Option option) {
+    private void addRecommendation(Option option, RecommendationExplanation explanation) {
         LinearLayout card = card();
         LinearLayout top = row();
         top.addView(parkingMark());
@@ -224,10 +232,15 @@ public final class MainActivity extends Activity {
             top.addView(cost);
         }
 
+        if (!explanation.headline().isEmpty()) {
+            TextView reason = label(explanation.headline(), 14, 500, muted);
+            reason.setSingleLine(true);
+            card.addView(reason);
+        }
         LinearLayout actions = row();
         actions.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
         actions.setPadding(0, dp(10), 0, 0);
-        actions.addView(action("상세", false, () -> showDetails(option)));
+        actions.addView(action("상세", false, () -> showDetails(option, explanation)));
         Button guide = action("입구 안내 ↗", true, () -> navigation.select(option).ifPresent(this::confirmPreview));
         LinearLayout.LayoutParams guideParams = new LinearLayout.LayoutParams(-2, -2);
         guideParams.setMarginStart(dp(8));
@@ -235,7 +248,7 @@ public final class MainActivity extends Activity {
         card.addView(actions);
     }
 
-    private void addAlternative(Option option) {
+    private void addAlternative(Option option, RecommendationExplanation explanation) {
         LinearLayout card = card();
         card.setPadding(dp(14), dp(7), dp(14), dp(7));
         card.setMinimumHeight(dp(52));
@@ -255,14 +268,14 @@ public final class MainActivity extends Activity {
         line.addView(tail);
         card.addView(line);
         card.setFocusable(true);
-        card.setOnClickListener(view -> showDetails(option));
+        card.setOnClickListener(view -> showDetails(option, explanation));
     }
 
-    private void showDetails(Option option) {
+    private void showDetails(Option option, RecommendationExplanation explanation) {
         Lot lot = option.lot();
-        String vehicleHeight = vehicle.heightMm() == null ? "확인 필요" : meters(vehicle.heightMm());
         String text = lot.type() + "\n입구 높이 제한 " + meters(lot.heightLimitMm())
-                + "\n차량 높이 " + vehicleHeight + (vehicle.catalogHeight() ? " · 제조사 기본 제원" : "")
+                + " (" + (lot.heightLimitMm() == null ? "미확인" : lot.heightLimitMm() + "mm") + ")"
+                + "\n" + explanation.vehicleDetails()
                 + (vehicle.widthMm() == null ? "" : "\n차량 너비 " + meters(vehicle.widthMm()))
                 + (vehicle.model().isEmpty() ? "" : "\n차량 " + vehicle.model())
                 + "\n" + option.requestAvailability().reason() + "\n\n" + lot.provenance();
@@ -274,7 +287,7 @@ public final class MainActivity extends Activity {
                 .setNeutralButton("요금 조건", (d, which) -> showQuoteSettings());
         navigation.select(option).ifPresent(selection ->
                 details.setPositiveButton("입구 안내", (d, which) -> confirmPreview(selection)));
-        show(details);
+        detailsDialog = show(details);
     }
 
     private void showQuoteSettings() {
@@ -333,7 +346,7 @@ public final class MainActivity extends Activity {
                 ? android.R.style.Theme_Material_Dialog_Alert : android.R.style.Theme_Material_Light_Dialog_Alert);
     }
 
-    private void show(AlertDialog.Builder builder) {
+    private AlertDialog show(AlertDialog.Builder builder) {
         AlertDialog alert = builder.show();
         TextView message = alert.findViewById(android.R.id.message);
         if (message != null) message.setTypeface(font);
@@ -341,6 +354,7 @@ public final class MainActivity extends Activity {
             Button button = alert.getButton(which);
             if (button != null) button.setTypeface(font);
         }
+        return alert;
     }
 
     private void setStatus(String message) {
