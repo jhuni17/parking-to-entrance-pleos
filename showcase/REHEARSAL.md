@@ -396,3 +396,24 @@ Windows 설치·화면·실제 SDK 콜백·실차·음성·음향 관측 증거�
 이번 작업 환경에는 PATH의 Java·Gradle과 Android SDK 설정이 없어 로컬 JVM 테스트·APK 빌드를 실행하지 못했다. 도구 설치·네트워크·커밋·푸시는 수행하지 않는다. 소스 assertion과 공백 검사는 실행 XML을 대신하지 않는다. 새 커밋이 만들어진 뒤 기존 GitHub Actions에서 `testPleosDebugUnitTest`·`assemblePleosDebug`, 전체 XML의 실패·오류·건너뜀 각 0건을 확인해야 한다. `source-sha.txt`와 `pleos-build-<full SHA>`의 새 전체 SHA 일치, README의 두 `sha256sum -c` 검사, APK 패키지·ZIP·unsigned 검사와 기준 `fc3bd6fe09c98370ec8e3d1aebc1c5169ce05a40` 대비 전체 diff·지정 다섯 파일 제한도 대기다. 기준 후보의 성공은 새 후보 성공 근거가 아니다.
 
 Windows 설치·화면·Activity 수명주기, 실제 SDK 콜백·차량 신호·실차·음성·음향 증거는 미확보다. 외부 사실은 기존 출처·확인일을 유지하며 이번에는 재확인하지 않았다. 1차 필수 제안서·서명 동의서, 선택 프로토타입·적격 GitHub/APK, 최종 PT 필수 작동 앱 시연은 별도 준비 대상이다.
+
+
+## 속성 형식 오류 격리 — prop-isolate (2026-11-09)
+
+`VehiclePropertyReader`는 플랫폼 객체를 만들지 않는 합성 source 경계다. 제조사·모델·연식·치수·연료를 각각 한 번 읽고 응답 null, 사용 불가 상태, 값 null, 잘못된 타입 및 개별 RuntimeException을 해당 속성의 누락으로만 처리한다. 문자열 숫자나 다른 배열 타입은 변환하지 않는다. Android 매핑 소스 대조에서는 `AndroidVehicleInfo`의 연결된 manager가 기존 INFO_MAKE/String, INFO_MODEL/String, INFO_MODEL_YEAR/Integer, INFO_EXTERIOR_DIMENSIONS/Integer[], INFO_FUEL_TYPE/Integer[]와 global area 0을 사용하며 STATUS_AVAILABLE 값만 reader에 전달한다. 연결 판정·정리·바깥 실패 처리는 유지한다. 이는 소스 대조이며 실제 SDK 응답 관측이 아니다.
+
+`VehiclePropertyReaderTest`의 가짜 source를 공유 reader → CONNECTED → VehicleRefreshState의 COMPLETE → 후보 계산·설명 → EntranceConfirmation → fake 내비까지 연결한다. 개별 오류는 자동 재시도를 만들지 않는다. 아래는 신규 assertion의 합성 기대값이며 오류 주입 UI나 실행 관측 기록이 아니다. 모두 120분·구매 할인 조건 충족 가정·제외 없음이며 부설 우선/요금 우선 양쪽을 검사한다.
+
+| 합성 source 입력 | 사용자 결과 및 assertion |
+| --- | --- |
+| 모델만 Integer, 치수 1850mm·1990mm, UNLEADED | 모델만 누락, 정상 높이·너비·비전기차 보존. 코엑스 0원 우선, 요청 가능 2곳 |
+| 위 입력에서 높이만 2250mm | 코엑스 RESTRICTED·선택 불가, 대안 A 6,000원 우선, 요청 가능 1곳. 대안 이유는 높이 초과 |
+| 제조사 보완 대상 아닌 차량의 치수가 사용 불가 또는 다른 배열 타입 | 높이·너비 null, 확인 필요, 요청 가능 0곳 |
+| 높이 1850mm, 연료만 잘못된 타입 | NEEDS_CHECK, 코엑스 확인 필요, 대안 A 6,000원만 요청 가능. 정상 ELECTRIC은 전기차로 유지 |
+| HYUNDAI·IONIQ 5 N·2025, 치수 누락 | 기존 제조사 보완 1585mm·1940mm 및 출처 표시 유지. 식별값 하나의 형식 오류면 보완 없음. 정상 하드웨어 1850mm·1990mm가 있으면 하드웨어 우선 |
+
+속성 읽기·계산·설명·확인 모델 생성까지 요청 0건이다. 1850→2250mm 갱신으로 이전 Option 선택과 Selection 확인을 차단하고 새 대안 A 확인만 원래 방문지 및 시연 좌표 37.51400, 127.06100으로 1건 요청한다. 중복 확인은 추가 요청하지 않으며 ACCEPTED·REJECTED·예외에 의한 REJECTED·SIMULATED를 구별한다. 차량값·출처의 상세 배치와 대안 이유 최대 한 줄은 유지하며 MainActivity 변경은 없다.
+
+이번 체크아웃에는 Java·Gradle이 PATH에 없어 JVM 테스트와 APK 빌드는 실행하지 못했다. 도구 설치·커밋·푸시·네트워크 호출은 하지 않았다. 신규 테스트는 실행 전 assertion이며 기존 성공 후보로 대체 증명하지 않는다. 새 후보 커밋의 GitHub Actions에서 `testPleosDebugUnitTest`·`assemblePleosDebug`, 신규 VehiclePropertyReaderTest 및 기존 VehicleProfileTest·VehicleWidthTest·VehicleReadResultTest를 포함한 전체 XML의 실패·오류·건너뜀 0건을 확인해야 한다. 새 전체 SHA와 `source-sha.txt`·`pleos-build-<full SHA>` 일치, Gradle 로그·입력 해시·unsigned APK, README의 두 sha256sum 검사와 기존 패키지·ZIP·unsigned 검사, 기준 `53aed5c98ca707b486f12e74289150cc4f6ae088` 대비 새 HEAD 전체 diff·공백 검사·다섯 editPaths 제한은 새 후보 CI 증거 대기다.
+
+외부 사실은 기존 출처·확인일을 유지하며 이번에는 재확인하지 않았다. Windows 설치·화면·실제 SDK 콜백·차량 신호·실차·음성·음향의 관측 증거는 없다. 합성 source 검증 설계, Android 매핑 소스 대조, CI 실행 증거, 실제 런타임 관측을 구별한다. 1차 필수 제안서·서명 동의서, 선택 프로토타입·적격 GitHub/APK, 최종 PT 필수 작동 앱 시연은 별도 준비 대상이며 제출·시연 완료를 주장하지 않는다.

@@ -19,28 +19,24 @@ final class AndroidVehicleInfo {
             if (car == null || !car.isConnected()) return VehicleReadResult.disconnected();
             CarPropertyManager manager = (CarPropertyManager) car.getCarManager(Car.PROPERTY_SERVICE);
             if (manager == null) return VehicleReadResult.disconnected();
-            return VehicleReadResult.connected(VehicleProfile.fromHardware(
-                    get(manager, String.class, VehiclePropertyIds.INFO_MAKE),
-                    get(manager, String.class, VehiclePropertyIds.INFO_MODEL),
-                    get(manager, Integer.class, VehiclePropertyIds.INFO_MODEL_YEAR),
-                    get(manager, Integer[].class, VehiclePropertyIds.INFO_EXTERIOR_DIMENSIONS),
-                    get(manager, Integer[].class, VehiclePropertyIds.INFO_FUEL_TYPE)));
+            return VehicleReadResult.connected(VehiclePropertyReader.read(property -> {
+                CarPropertyValue<?> value = switch (property) {
+                    case MAKE -> manager.getProperty(String.class, VehiclePropertyIds.INFO_MAKE, 0);
+                    case MODEL -> manager.getProperty(String.class, VehiclePropertyIds.INFO_MODEL, 0);
+                    case YEAR -> manager.getProperty(Integer.class, VehiclePropertyIds.INFO_MODEL_YEAR, 0);
+                    case DIMENSIONS -> manager.getProperty(Integer[].class, VehiclePropertyIds.INFO_EXTERIOR_DIMENSIONS, 0);
+                    case FUEL -> manager.getProperty(Integer[].class, VehiclePropertyIds.INFO_FUEL_TYPE, 0);
+                };
+                return value == null ? null : new VehiclePropertyReader.Response(
+                        value.getStatus() == CarPropertyValue.STATUS_AVAILABLE,
+                        value.getStatus() == CarPropertyValue.STATUS_AVAILABLE ? value.getValue() : null);
+            }));
         } catch (RuntimeException | LinkageError unavailable) {
             return VehicleReadResult.unavailable();
         } finally {
             if (car != null) {
                 try { car.disconnect(); } catch (RuntimeException ignored) { /* Cleanup only. */ }
             }
-        }
-    }
-
-    private static <T> T get(CarPropertyManager manager, Class<T> type, int propertyId) {
-        try {
-            CarPropertyValue<T> value = manager.getProperty(type, propertyId, 0);
-            return value != null && value.getStatus() == CarPropertyValue.STATUS_AVAILABLE ? value.getValue() : null;
-        } catch (RuntimeException unavailable) {
-            // One unsupported or inaccessible property must not discard the rest of the profile.
-            return null;
         }
     }
 
