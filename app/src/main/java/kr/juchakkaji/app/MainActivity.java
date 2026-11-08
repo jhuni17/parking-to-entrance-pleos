@@ -2,9 +2,14 @@ package kr.juchakkaji.app;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.graphics.Color;
+import android.content.res.ColorStateList;
+import android.content.res.Configuration;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.RippleDrawable;
 import android.os.Bundle;
-import android.view.ViewGroup;
+import android.view.Gravity;
+import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.LinearLayout;
@@ -12,169 +17,349 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 
 import java.text.NumberFormat;
-import java.util.Locale;
 import java.util.List;
+import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static kr.juchakkaji.app.ParkingPlan.*;
 
 public final class MainActivity extends Activity {
+    private static final String STAY_MINUTES = "demoProfile.stayMinutes";
+    private static final String PURCHASE_DISCOUNT = "demoProfile.purchaseDiscount";
+
+    private final ExecutorService carReader = Executors.newSingleThreadExecutor();
     private ParkingNavigation navigation;
+    private VehicleProfile vehicle = VehicleProfile.UNKNOWN;
+    private int readGeneration;
+    private boolean readingVehicle;
+    private int stayMinutes = 120;
+    private boolean purchaseDiscount;
+
+    private Typeface font;
+    private boolean night;
+    private int surface;
+    private int cardColor;
+    private int ink;
+    private int muted;
+    private int strong;
+    private int onStrong;
     private TextView destination;
-    private DemoProfile profile = DemoProfile.defaults();
-    private TextView result;
-    private TextView lastRequest;
+    private TextView status;
+    private TextView receipt;
     private LinearLayout list;
 
     @Override
-    protected void onCreate(Bundle state) {
-        super.onCreate(state);
-        if (state != null) {
-            profile = DemoProfile.restore(java.util.Map.of(
-                    DemoProfile.ROOF_BOX, state.getBoolean(DemoProfile.ROOF_BOX, profile.roofBox()),
-                    DemoProfile.ELECTRIC, state.getBoolean(DemoProfile.ELECTRIC, profile.electric()),
-                    DemoProfile.PURCHASE_DISCOUNT, state.getBoolean(DemoProfile.PURCHASE_DISCOUNT, profile.purchaseDiscount()),
-                    DemoProfile.STAY_MINUTES, state.getInt(DemoProfile.STAY_MINUTES, profile.stayMinutes())));
+    protected void onCreate(Bundle saved) {
+        super.onCreate(saved);
+        if (saved != null) {
+            stayMinutes = saved.getInt(STAY_MINUTES, stayMinutes);
+            purchaseDiscount = saved.getBoolean(PURCHASE_DISCOUNT, purchaseDiscount);
         }
+        font = getResources().getFont(R.font.asta_sans);
+        night = (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
+                == Configuration.UI_MODE_NIGHT_YES;
+        surface = night ? 0xff242529 : 0xffe9e9ed;
+        cardColor = night ? 0xff33343a : 0xfffbfbfc;
+        ink = night ? 0xfff6f6f9 : 0xff16171a;
+        muted = night ? 0xffc8c9d0 : 0xff56585f;
+        strong = night ? 0xfff1f1f4 : 0xff24252a;
+        onStrong = night ? 0xff18191d : 0xffffffff;
+        getWindow().setStatusBarColor(surface);
+        getWindow().setNavigationBarColor(surface);
+        getWindow().getDecorView().setSystemUiVisibility(night ? 0
+                : View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
+
         ScrollView scroll = new ScrollView(this);
+        scroll.setBackgroundColor(surface);
+        scroll.setFillViewport(true);
         LinearLayout content = column();
-        content.setPadding(dp(24), dp(16), dp(24), dp(24));
+        content.setPadding(dp(20), dp(16), dp(20), dp(20));
         scroll.addView(content);
         setContentView(scroll);
 
-        content.addView(label("주차까지", 32));
-        content.addView(label("시연 모드 · 정차 후 조작", 16));
-        destination = label("", 22);
-        content.addView(destination);
+        content.addView(label("주차까지", 15, 500, muted));
+        LinearLayout header = row();
+        destination = label("", 27, 700, ink);
+        header.addView(destination, new LinearLayout.LayoutParams(0, -2, 1));
+        TextView mode = label("시연 목적지", 13, 500, muted);
+        mode.setPadding(dp(8), 0, 0, 0);
+        header.addView(mode);
+        content.addView(header);
+        status = label("", 15, 500, muted);
+        status.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+        content.addView(status);
+        list = column();
+        content.addView(list);
+        receipt = label("", 14, 500, muted);
+        receipt.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+        content.addView(receipt);
+
         SampleTrip.SimulatedNavigation adapter = new SampleTrip.SimulatedNavigation();
         navigation = new ParkingNavigation(adapter, this::refresh);
         adapter.start();
-        content.addView(toggle("루프박스 포함 2.25 m (기본 1.85 m)", profile.roofBox(),
-                value -> profile = new DemoProfile(value, profile.electric(), profile.purchaseDiscount(), profile.stayMinutes())));
-        content.addView(toggle("전기차 시연 프로필", profile.electric(),
-                value -> profile = new DemoProfile(profile.roofBox(), value, profile.purchaseDiscount(), profile.stayMinutes())));
-        content.addView(toggle("대상 매장 10만 원 영수증 할인 가정", profile.purchaseDiscount(),
-                value -> profile = new DemoProfile(profile.roofBox(), profile.electric(), value, profile.stayMinutes())));
-        Button duration = new Button(this);
-        duration.setText(durationText());
-        duration.setOnClickListener(view -> {
-            profile = new DemoProfile(profile.roofBox(), profile.electric(), profile.purchaseDiscount(),
-                    profile.stayMinutes() == 120 ? 60 : 120);
-            duration.setText(durationText());
-            refresh();
-        });
-        content.addView(duration);
+    }
 
-        result = label("", 18);
-        lastRequest = label("", 18);
-        list = column();
-        content.addView(result);
-        content.addView(lastRequest);
-        content.addView(list);
+    @Override
+    protected void onStart() {
+        super.onStart();
+        int generation = ++readGeneration;
+        readingVehicle = true;
+        vehicle = VehicleProfile.UNKNOWN;
         refresh();
+        var context = getApplicationContext();
+        carReader.execute(() -> {
+            VehicleProfile current = AndroidVehicleInfo.read(context);
+            runOnUiThread(() -> {
+                if (generation != readGeneration || isDestroyed()) return;
+                vehicle = current;
+                readingVehicle = false;
+                refresh();
+            });
+        });
+    }
+
+    @Override
+    protected void onStop() {
+        readGeneration++;
+        super.onStop();
+    }
+
+    @Override
+    protected void onDestroy() {
+        carReader.shutdownNow();
+        super.onDestroy();
     }
 
     @Override
     protected void onSaveInstanceState(Bundle state) {
         super.onSaveInstanceState(state);
-        // Only input conditions cross recreation; selections and route results do not.
-        java.util.Map<String, Object> saved = profile.save();
-        state.putBoolean(DemoProfile.ROOF_BOX, (Boolean) saved.get(DemoProfile.ROOF_BOX));
-        state.putBoolean(DemoProfile.ELECTRIC, (Boolean) saved.get(DemoProfile.ELECTRIC));
-        state.putBoolean(DemoProfile.PURCHASE_DISCOUNT, (Boolean) saved.get(DemoProfile.PURCHASE_DISCOUNT));
-        state.putInt(DemoProfile.STAY_MINUTES, (Integer) saved.get(DemoProfile.STAY_MINUTES));
-    }
-
-    private String durationText() {
-        return profile.stayMinutes() == 120
-                ? "이용 시간 2시간 · 1시간으로 변경" : "이용 시간 1시간 · 2시간으로 변경";
+        state.putInt(STAY_MINUTES, stayMinutes);
+        state.putBoolean(PURCHASE_DISCOUNT, purchaseDiscount);
     }
 
     private void refresh() {
-        if (list == null) return;
         navigation.invalidateSelections();
-        destination.setText("방문 목적지  " + navigation.visit().name() + " (시연 입력)");
-        List<Option> options = navigation.options(profile.vehicleHeightMm(),
-                profile.electric(), profile.stayMinutes(), profile.purchaseDiscount());
-        result.setText(candidateSummary(options) + "\n현재 조건의 후보 · 요청은 아래 마지막 기록 참조\n차량 높이 " + (profile.roofBox() ? "2.25 m" : "1.85 m") + " · 등록 시연값");
-        ParkingNavigation.Receipt receipt = navigation.lastRequest();
-        lastRequest.setText(receipt == null ? "마지막 요청 없음"
-                : "마지막 요청 · 과거 확인 기록 (현재 후보 판단과 별개)"
-                + "\n방문 목적지  " + receipt.request().visit()
-                + "\n차량 도착점  " + receipt.request().entrance().label()
-                + String.format(Locale.KOREA, "\n좌표  %.5f, %.5f",
-                        receipt.request().entrance().latitude(), receipt.request().entrance().longitude())
-                + "\n" + routeStatus(receipt.outcome()));
+        destination.setText(navigation.visit() == null ? "목적지 없음" : navigation.visit().name());
+        List<Option> options = navigation.options(vehicle.heightMm(), vehicle.drive(), stayMinutes, purchaseDiscount);
+        setStatus(readingVehicle ? "차량 정보 확인 중"
+                : vehicle.heightMm() == null ? "차량 높이 확인 필요"
+                : requestableCount(options) == 0 ? "입구 안내 가능한 주차장 없음" : "");
+        ParkingNavigation.Receipt last = navigation.lastRequest();
+        receipt.setVisibility(last == null ? View.GONE : View.VISIBLE);
+        if (last != null) {
+            receipt.setText(last.request().entrance().label() + " · " + routeStatus(last.outcome()));
+            receipt.setOnClickListener(view -> showReceipt(last));
+        } else {
+            receipt.setOnClickListener(null);
+        }
         list.removeAllViews();
-        for (Option option : options) {
-            LinearLayout card = column();
-            card.setBackgroundColor(Color.rgb(32, 40, 54));
-            card.setPadding(dp(16), dp(12), dp(16), dp(12));
-            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            params.topMargin = dp(12);
-            list.addView(card, params);
-            Lot lot = option.lot();
-            card.addView(label(lot.name() + "  ·  " + lot.type(), 22));
-            String limit = lot.heightLimitMm() == null ? "미확인"
-                    : String.format(Locale.KOREA, "%.2f m", lot.heightLimitMm() / 1000.0);
-            card.addView(label(option.reason() + " · 제한 높이 " + limit, 18));
-            card.addView(label("기본 " + won(option.baseWon()) + " / 조건 적용 예상 "
-                    + won(option.expectedWon()), 18));
-            if (lot.tariff() != null && !lot.tariff().purchaseRule().isEmpty()) {
-                card.addView(label(lot.tariff().purchaseRule(), 15));
-            }
-            card.addView(label(lot.provenance(), 15));
-            RequestAvailability availability = option.requestAvailability();
-            if (!availability.available()) {
-                card.addView(label("선택 불가 · " + availability.reason(), 18));
-            } else {
-                navigation.select(option).ifPresent(selection -> {
-                    Button preview = new Button(this);
-                    preview.setText("입구 경로 요청 미리보기");
-                    preview.setOnClickListener(view -> confirmPreview(selection));
-                    card.addView(preview);
-                });
-            }
+        for (int index = 0; index < options.size(); index++) {
+            Option option = options.get(index);
+            if (index == 0 && option.requestAvailability().available()) addRecommendation(option);
+            else addAlternative(option);
         }
     }
 
-    private void confirmPreview(ParkingNavigation.Selection selection) {
-        RouteRequest route = selection.request();
-        Entrance entrance = route.entrance();
-        new AlertDialog.Builder(this)
-                .setTitle("시연 경로 요청")
-                .setMessage("방문 목적지  " + route.visit() + "\n차량 도착점  " + entrance.label()
-                        + "\n좌표  " + entrance.latitude() + ", " + entrance.longitude()
-                        + "\n기본 내비 연동 전 단계입니다.")
-                .setNegativeButton("취소", null)
-                .setPositiveButton("요청 확인", (dialog, which) -> {
-                    if (navigation.confirm(selection) == ParkingNavigation.Status.STALE) {
-                        result.setText("만료된 선택 · 최신 목적지에서 다시 선택하세요");
-                    }
-                })
-                .show();
+    private void addRecommendation(Option option) {
+        LinearLayout card = card();
+        LinearLayout top = row();
+        top.addView(parkingMark());
+        LinearLayout name = column();
+        name.addView(label(option.lot().name(), 20, 700, ink));
+        Tariff tariff = option.lot().tariff();
+        if (tariff != null && !tariff.purchaseRule().isEmpty()) {
+            name.addView(label(tariff.purchaseRule(), 14, 500, muted));
+        }
+        LinearLayout.LayoutParams nameParams = new LinearLayout.LayoutParams(0, -2, 1);
+        nameParams.setMarginStart(dp(10));
+        top.addView(name, nameParams);
+        card.addView(top);
+
+        boolean compact = getResources().getConfiguration().screenWidthDp < 440;
+        LinearLayout cost = compact ? row() : column();
+        TextView amount = label(won(option.expectedWon()), 27, 700, ink);
+        TextView duration = label((stayMinutes / 60) + "시간 예상", 13, 500, muted);
+        cost.addView(amount);
+        cost.addView(duration);
+        if (compact) {
+            duration.setPadding(dp(8), 0, 0, 0);
+            cost.setPadding(dp(44), dp(6), 0, 0);
+            card.addView(cost);
+        } else {
+            cost.setGravity(Gravity.END);
+            cost.setPadding(dp(8), 0, 0, 0);
+            top.addView(cost);
+        }
+
+        LinearLayout actions = row();
+        actions.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
+        actions.setPadding(0, dp(10), 0, 0);
+        actions.addView(action("상세", false, () -> showDetails(option)));
+        Button guide = action("입구 안내 ↗", true, () -> navigation.select(option).ifPresent(this::confirmPreview));
+        LinearLayout.LayoutParams guideParams = new LinearLayout.LayoutParams(-2, -2);
+        guideParams.setMarginStart(dp(8));
+        actions.addView(guide, guideParams);
+        card.addView(actions);
     }
 
-    private String routeStatus(ParkingNavigation.Status status) {
-        return switch (status) {
-            case IDLE -> "입구 요청 전 · 시연 모드";
-            case SIMULATED -> "시연 어댑터 요청 처리 · 실제 길안내 시작 아님";
+    private void addAlternative(Option option) {
+        LinearLayout card = card();
+        card.setPadding(dp(14), dp(7), dp(14), dp(7));
+        card.setMinimumHeight(dp(52));
+        card.setBackground(touchBackground(cardColor, 12));
+        LinearLayout line = row();
+        line.setMinimumHeight(dp(38));
+        line.addView(parkingMark());
+        LinearLayout.LayoutParams title = new LinearLayout.LayoutParams(0, -2, 1);
+        title.setMarginStart(dp(10));
+        line.addView(label(option.lot().name(), 16, 600, ink), title);
+        String value = option.requestAvailability().available() ? won(option.expectedWon())
+                : option.fit() == Fit.RESTRICTED
+                    ? option.reason().contains("높이") ? "높이 초과" : "입차 제한"
+                    : "확인 필요";
+        TextView tail = label(value + "  ›", 14, 500, muted);
+        tail.setPadding(dp(8), 0, 0, 0);
+        line.addView(tail);
+        card.addView(line);
+        card.setFocusable(true);
+        card.setOnClickListener(view -> showDetails(option));
+    }
+
+    private void showDetails(Option option) {
+        Lot lot = option.lot();
+        String vehicleHeight = vehicle.heightMm() == null ? "확인 필요" : meters(vehicle.heightMm());
+        String text = lot.type() + "\n입구 높이 제한 " + meters(lot.heightLimitMm())
+                + "\n차량 높이 " + vehicleHeight + (vehicle.catalogHeight() ? " · 제조사 기본 제원" : "")
+                + (vehicle.widthMm() == null ? "" : "\n차량 너비 " + meters(vehicle.widthMm()))
+                + (vehicle.model().isEmpty() ? "" : "\n차량 " + vehicle.model())
+                + "\n" + option.requestAvailability().reason() + "\n\n" + lot.provenance();
+        if (lot.tariff() != null && !lot.tariff().purchaseRule().isEmpty()) {
+            text += "\n" + lot.tariff().purchaseRule();
+        }
+        AlertDialog.Builder details = dialog().setTitle(lot.name()).setMessage(text)
+                .setNegativeButton("닫기", null)
+                .setNeutralButton("요금 조건", (d, which) -> showQuoteSettings());
+        navigation.select(option).ifPresent(selection ->
+                details.setPositiveButton("입구 안내", (d, which) -> confirmPreview(selection)));
+        show(details);
+    }
+
+    private void showQuoteSettings() {
+        LinearLayout body = column();
+        body.setPadding(dp(24), dp(8), dp(24), 0);
+        CheckBox twoHours = new CheckBox(this);
+        twoHours.setText("2시간 기준 (해제 시 1시간)");
+        twoHours.setTypeface(font);
+        twoHours.setChecked(stayMinutes == 120);
+        body.addView(twoHours);
+        CheckBox discount = new CheckBox(this);
+        discount.setText("구매 할인 조건 충족 가정");
+        discount.setTypeface(font);
+        discount.setChecked(purchaseDiscount);
+        body.addView(discount);
+        show(dialog().setTitle("요금 조건").setView(body).setNegativeButton("취소", null)
+                .setPositiveButton("적용", (d, which) -> {
+                    stayMinutes = twoHours.isChecked() ? 120 : 60;
+                    purchaseDiscount = discount.isChecked();
+                    refresh();
+                }));
+    }
+
+    private void confirmPreview(ParkingNavigation.Selection selection) {
+        show(dialog().setTitle("이 입구로 안내할까요?")
+                .setMessage(selection.request().entrance().label() + "\n시연 경로 요청")
+                .setNegativeButton("취소", null)
+                .setPositiveButton("시연 요청", (d, which) -> {
+                    if (navigation.confirm(selection) == ParkingNavigation.Status.STALE) {
+                        setStatus("조건이 바뀌었습니다. 입구를 다시 선택하세요.");
+                    }
+                }));
+    }
+
+    private void showReceipt(ParkingNavigation.Receipt last) {
+        Entrance entrance = last.request().entrance();
+        String coordinates = String.format(Locale.KOREA, "%.5f, %.5f", entrance.latitude(), entrance.longitude());
+        show(dialog().setTitle("마지막 요청")
+                .setMessage(last.request().visit() + "\n" + entrance.label() + "\n" + coordinates
+                        + "\n" + routeStatus(last.outcome()))
+                .setPositiveButton("닫기", null));
+    }
+
+    private String routeStatus(ParkingNavigation.Status outcome) {
+        return switch (outcome) {
+            case SIMULATED -> "시연 요청 완료";
             case ACCEPTED -> "내비 요청 수락";
             case REJECTED -> "입구 경로 요청 실패";
             case STALE -> "만료된 선택";
+            case IDLE -> "입구 요청 전";
         };
     }
 
-    private CheckBox toggle(String title, boolean checked, java.util.function.Consumer<Boolean> change) {
-        CheckBox box = new CheckBox(this);
-        box.setMinHeight(dp(48));
-        box.setText(title);
-        box.setChecked(checked);
-        box.setOnCheckedChangeListener((button, value) -> {
-            change.accept(value);
-            refresh();
-        });
-        return box;
+    private AlertDialog.Builder dialog() {
+        return new AlertDialog.Builder(this, night
+                ? android.R.style.Theme_Material_Dialog_Alert : android.R.style.Theme_Material_Light_Dialog_Alert);
+    }
+
+    private void show(AlertDialog.Builder builder) {
+        AlertDialog alert = builder.show();
+        TextView message = alert.findViewById(android.R.id.message);
+        if (message != null) message.setTypeface(font);
+        for (int which : new int[]{-1, -2, -3}) {
+            Button button = alert.getButton(which);
+            if (button != null) button.setTypeface(font);
+        }
+    }
+
+    private void setStatus(String message) {
+        status.setVisibility(message.isEmpty() ? View.GONE : View.VISIBLE);
+        status.setText(message);
+    }
+
+    private LinearLayout card() {
+        LinearLayout card = column();
+        card.setPadding(dp(16), dp(15), dp(16), dp(15));
+        card.setBackground(shape(cardColor, 12));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
+        params.topMargin = dp(9);
+        list.addView(card, params);
+        return card;
+    }
+
+    private TextView parkingMark() {
+        TextView mark = label("P", 17, 700, muted);
+        mark.setGravity(Gravity.CENTER);
+        mark.setBackground(shape(surface, 8));
+        mark.setLayoutParams(new LinearLayout.LayoutParams(dp(34), dp(34)));
+        mark.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        return mark;
+    }
+
+    private Button action(String caption, boolean primary, Runnable click) {
+        Button button = new Button(this);
+        button.setText(caption);
+        button.setAllCaps(false);
+        button.setTypeface(Typeface.create(font, 650, false));
+        button.setTextSize(15);
+        button.setTextColor(primary ? onStrong : ink);
+        button.setMinHeight(dp(48));
+        button.setMinimumWidth(dp(56));
+        button.setPadding(dp(13), 0, dp(13), 0);
+        button.setStateListAnimator(null);
+        button.setBackground(touchBackground(primary ? strong : surface, 8));
+        button.setOnClickListener(view -> click.run());
+        return button;
+    }
+
+    private RippleDrawable touchBackground(int fill, int corner) {
+        return new RippleDrawable(ColorStateList.valueOf(0x25000000), shape(fill, corner), null);
+    }
+
+    private GradientDrawable shape(int fill, int corner) {
+        GradientDrawable shape = new GradientDrawable();
+        shape.setColor(fill);
+        shape.setCornerRadius(dp(corner));
+        return shape;
     }
 
     private LinearLayout column() {
@@ -183,11 +368,18 @@ public final class MainActivity extends Activity {
         return layout;
     }
 
-    private TextView label(String value, int size) {
+    private LinearLayout row() {
+        LinearLayout layout = new LinearLayout(this);
+        layout.setGravity(Gravity.CENTER_VERTICAL);
+        return layout;
+    }
+
+    private TextView label(String text, int size, int weight, int color) {
         TextView view = new TextView(this);
-        view.setText(value);
+        view.setText(text);
         view.setTextSize(size);
-        view.setPadding(0, dp(4), 0, dp(4));
+        view.setTypeface(Typeface.create(font, weight, false));
+        view.setTextColor(color);
         return view;
     }
 
@@ -195,7 +387,11 @@ public final class MainActivity extends Activity {
         return Math.round(amount * getResources().getDisplayMetrics().density);
     }
 
-    private String won(Integer amount) {
-        return amount == null ? "미확인" : NumberFormat.getIntegerInstance(Locale.KOREA).format(amount) + "원";
+    private static String meters(Integer mm) {
+        return mm == null ? "미확인" : String.format(Locale.KOREA, "%.2f m", mm / 1000.0);
+    }
+
+    private static String won(Integer amount) {
+        return amount == null ? "요금 미확인" : NumberFormat.getIntegerInstance(Locale.KOREA).format(amount) + "원";
     }
 }

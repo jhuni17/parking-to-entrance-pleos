@@ -2,6 +2,9 @@ package kr.juchakkaji.app;
 
 import org.junit.Test;
 
+import static kr.juchakkaji.app.VehicleProfile.DriveType.ELECTRIC;
+import static kr.juchakkaji.app.VehicleProfile.DriveType.NON_ELECTRIC;
+
 import java.util.Arrays;
 import java.util.List;
 
@@ -10,20 +13,20 @@ import static org.junit.Assert.*;
 
 public final class ParkingPlanTest {
     @Test public void purchaseConditionMakesAttachedLotFirst() {
-        List<Option> options = compare(SampleTrip.LOTS, 1850, false, 120, true);
+        List<Option> options = compare(SampleTrip.LOTS, 1850, NON_ELECTRIC, 120, true);
         assertEquals("코엑스 지하주차장", options.get(0).lot().name());
         assertEquals(Integer.valueOf(12000), options.get(0).baseWon());
         assertEquals(Integer.valueOf(0), options.get(0).expectedWon());
     }
 
-    @Test public void noPurchaseConditionKeepsFullPriceAndReorders() {
-        List<Option> options = compare(SampleTrip.LOTS, 1850, false, 120, false);
-        assertEquals("대안 A · 시연 주차장", options.get(0).lot().name());
+    @Test public void noPurchaseConditionShowsFullPriceAndKeepsUsableOnSiteOptionFirst() {
+        List<Option> options = compare(SampleTrip.LOTS, 1850, NON_ELECTRIC, 120, false);
+        assertEquals("코엑스 지하주차장", options.get(0).lot().name());
         assertEquals(Integer.valueOf(12000), find(options, "코엑스 지하주차장").expectedWon());
     }
 
     @Test public void heightRestrictionWinsOverFreeParking() {
-        List<Option> options = compare(SampleTrip.LOTS, 2250, false, 120, true);
+        List<Option> options = compare(SampleTrip.LOTS, 2250, NON_ELECTRIC, 120, true);
         assertEquals("대안 A · 시연 주차장", options.get(0).lot().name());
         assertEquals(Integer.valueOf(6000), options.get(0).expectedWon());
         Option attached = find(options, "코엑스 지하주차장");
@@ -32,10 +35,10 @@ public final class ParkingPlanTest {
     }
 
     @Test public void missingAndBoundaryHeightNeedConfirmation() {
-        Option unknownLot = find(compare(SampleTrip.LOTS, 1850, false, 60, false),
+        Option unknownLot = find(compare(SampleTrip.LOTS, 1850, NON_ELECTRIC, 60, false),
                 "대안 B · 시연 주차장");
-        Option unknownVehicle = compare(SampleTrip.LOTS, null, false, 60, false).get(0);
-        Option exactHeight = find(compare(SampleTrip.LOTS, 2200, false, 60, false),
+        Option unknownVehicle = compare(SampleTrip.LOTS, null, NON_ELECTRIC, 60, false).get(0);
+        Option exactHeight = find(compare(SampleTrip.LOTS, 2200, NON_ELECTRIC, 60, false),
                 "코엑스 지하주차장");
         assertEquals(Fit.NEEDS_CHECK, unknownLot.fit());
         assertEquals(Fit.NEEDS_CHECK, unknownVehicle.fit());
@@ -44,17 +47,17 @@ public final class ParkingPlanTest {
     }
 
     @Test public void unknownEvPolicyAndEvBanAreDifferent() {
-        Option unknown = find(compare(SampleTrip.LOTS, 1850, true, 120, true), "코엑스 지하주차장");
+        Option unknown = find(compare(SampleTrip.LOTS, 1850, ELECTRIC, 120, true), "코엑스 지하주차장");
         Lot restricted = new Lot("EV 제한 샘플", "기계식 예시", true, 2200, EvEntry.RESTRICTED,
                 null, null, "테스트 데이터");
-        Option banned = compare(Arrays.asList(restricted), 1850, true, 60, false).get(0);
+        Option banned = compare(Arrays.asList(restricted), 1850, ELECTRIC, 60, false).get(0);
         assertEquals(Fit.NEEDS_CHECK, unknown.fit());
         assertEquals(Fit.RESTRICTED, banned.fit());
         assertNull(banned.expectedWon());
     }
 
     @Test public void routePreservesVisitAndUsesChosenEntrance() {
-        Option first = compare(SampleTrip.LOTS, 2250, false, 120, true).get(0);
+        Option first = compare(SampleTrip.LOTS, 2250, NON_ELECTRIC, 120, true).get(0);
         RouteRequest request = routeRequest(SampleTrip.VISIT, first).get();
         assertEquals("스타필드 코엑스몰", request.visit());
         assertEquals("대안 A 입구 (시연 좌표)", request.entrance().label());
@@ -73,7 +76,7 @@ public final class ParkingPlanTest {
                 new Tariff(60, 0, 0, ""), null, "합성 테스트");
         Lot paid = new Lot("입구 있는 유료 시설", "합성", false, 2500, EvEntry.ALLOWED,
                 new Tariff(60, 3000, 0, ""), new Entrance("합성 입구", 37, 127), "합성 테스트");
-        List<Option> options = compare(Arrays.asList(free, paid), 1850, false, 120, true);
+        List<Option> options = compare(Arrays.asList(free, paid), 1850, NON_ELECTRIC, 120, true);
         assertEquals(paid, options.get(0).lot());
         assertEquals(Integer.valueOf(6000), options.get(0).expectedWon());
         Option unavailable = options.get(1);
@@ -94,7 +97,7 @@ public final class ParkingPlanTest {
                 null, new Entrance("합성 입구", 37, 127), "합성 테스트");
         Lot unknown = new Lot("높이 미확인", "합성", true, null, EvEntry.UNKNOWN,
                 null, new Entrance("합성 입구", 37, 127), "합성 테스트");
-        List<Option> options = compare(Arrays.asList(missing, restricted, unknown), 1850, false, 120, true);
+        List<Option> options = compare(Arrays.asList(missing, restricted, unknown), 1850, NON_ELECTRIC, 120, true);
         assertEquals(0, requestableCount(options));
         assertEquals("요청 가능한 입구 없음 · 요청 가능한 후보 0곳", candidateSummary(options));
         assertEquals(Fit.MATCHES_RECORDED_RULES, find(options, "입구 누락").fit());
@@ -108,7 +111,7 @@ public final class ParkingPlanTest {
     }
 
     @Test public void emptyLotsHaveNoFacilityInformation() {
-        List<Option> options = compare(java.util.Collections.emptyList(), 1850, false, 120, true);
+        List<Option> options = compare(java.util.Collections.emptyList(), 1850, NON_ELECTRIC, 120, true);
         assertTrue(options.isEmpty());
         assertEquals(0, requestableCount(options));
         assertEquals("시설 정보 없음 · 요청 가능한 후보 0곳", candidateSummary(options));

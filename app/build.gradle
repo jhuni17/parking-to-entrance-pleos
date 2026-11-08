@@ -5,6 +5,7 @@ plugins {
 android {
     namespace 'kr.juchakkaji.app'
     compileSdk 35
+    useLibrary 'android.car'
 
     defaultConfig {
         applicationId 'kr.juchakkaji.app'

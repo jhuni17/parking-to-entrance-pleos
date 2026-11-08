@@ -48,8 +48,8 @@ final class ParkingNavigation {
     Status status() { return status; }
     Receipt lastRequest() { return lastRequest; }
     void invalidateSelections() { generation++; }
-    List<ParkingPlan.Option> options(Integer height, boolean electric, int minutes, boolean discount) {
-        return ParkingPlan.compare(visit == null ? List.of() : visit.lots(), height, electric, minutes, discount);
+    List<ParkingPlan.Option> options(Integer height, VehicleProfile.DriveType drive, int minutes, boolean discount) {
+        return ParkingPlan.compare(visit == null ? List.of() : visit.lots(), height, drive, minutes, discount);
     }
     Optional<Selection> select(ParkingPlan.Option option) {
         if (visit == null || !visit.lots().contains(option.lot())) return Optional.empty();

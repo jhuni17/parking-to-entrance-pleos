@@ -5,6 +5,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
+import kr.juchakkaji.app.VehicleProfile.DriveType;
+
 final class ParkingPlan {
     enum Fit { MATCHES_RECORDED_RULES, NEEDS_CHECK, RESTRICTED }
     enum EvEntry { ALLOWED, RESTRICTED, UNKNOWN }
@@ -50,20 +52,20 @@ final class ParkingPlan {
 
     record RouteRequest(String visit, Entrance entrance) {}
 
-    static List<Option> compare(List<Lot> lots, Integer vehicleHeightMm, boolean electric,
+    static List<Option> compare(List<Lot> lots, Integer vehicleHeightMm, DriveType drive,
                                 int stayMinutes, boolean qualifiesForPurchaseDiscount) {
         List<Option> options = new ArrayList<>();
         for (Lot lot : lots) {
-            options.add(evaluate(lot, vehicleHeightMm, electric, stayMinutes, qualifiesForPurchaseDiscount));
+            options.add(evaluate(lot, vehicleHeightMm, drive, stayMinutes, qualifiesForPurchaseDiscount));
         }
         options.sort(Comparator.comparing((Option option) -> !option.requestAvailability().available())
                 .thenComparing(Option::fit)
-                .thenComparing(Option::expectedWon, Comparator.nullsLast(Comparator.naturalOrder()))
-                .thenComparing(option -> !option.lot().attached()));
+                .thenComparing(option -> !option.lot().attached())
+                .thenComparing(Option::expectedWon, Comparator.nullsLast(Comparator.naturalOrder())));
         return options;
     }
 
-    private static Option evaluate(Lot lot, Integer heightMm, boolean electric,
+    private static Option evaluate(Lot lot, Integer heightMm, DriveType drive,
                                    int stayMinutes, boolean qualifiesForPurchaseDiscount) {
         Tariff tariff = lot.tariff();
         Integer base = tariff == null ? null : tariff.quote(stayMinutes, false);
@@ -72,13 +74,19 @@ final class ParkingPlan {
         if (heightMm != null && limitMm != null && heightMm > limitMm) {
             return new Option(lot, Fit.RESTRICTED, "표기 높이 제한 초과", base, expected);
         }
-        if (electric && lot.evEntry() == EvEntry.RESTRICTED) {
+        if (drive == DriveType.ELECTRIC && lot.evEntry() == EvEntry.RESTRICTED) {
             return new Option(lot, Fit.RESTRICTED, "등록된 전기차 입차 제한", base, expected);
         }
-        if (heightMm == null || limitMm == null || heightMm.equals(limitMm)) {
+        if (heightMm == null) {
+            return new Option(lot, Fit.NEEDS_CHECK, "차량 높이 확인 필요", base, expected);
+        }
+        if (limitMm == null || heightMm.equals(limitMm)) {
             return new Option(lot, Fit.NEEDS_CHECK, "높이 여유 또는 제한 정보 확인 필요", base, expected);
         }
-        if (electric && lot.evEntry() == EvEntry.UNKNOWN) {
+        if (drive == DriveType.NEEDS_CHECK && lot.evEntry() != EvEntry.ALLOWED) {
+            return new Option(lot, Fit.NEEDS_CHECK, "차량 연료 유형 확인 필요", base, expected);
+        }
+        if (drive == DriveType.ELECTRIC && lot.evEntry() == EvEntry.UNKNOWN) {
             return new Option(lot, Fit.NEEDS_CHECK, "전기차 입차 조건 확인 필요", base, expected);
         }
         return new Option(lot, Fit.MATCHES_RECORDED_RULES, "등록된 입차 조건 기준 충족", base, expected);

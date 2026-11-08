@@ -2,13 +2,14 @@
 
 내비에 목적지를 찍은 뒤 다시 휴대폰을 열지 않고, 현재 차량과 방문 조건에 맞는 주차장을 고르는 Pleos 차량용 앱 공모전 일반 부문 프로젝트.
 
-## 첫 빌드에서 해볼 수 있는 것
+## 현재 Android 화면
 
-Android Automotive 화면에서 코엑스몰과 주변 시연 주차장을 비교한다. 차량 높이, 전기차 여부, 체류 시간과 방문 할인 조건을 바꾸면 입차 판단, 예상 요금, 목록 순서가 다시 계산된다. 선택한 입구와 원래 방문 목적지를 함께 담은 요청을 확인할 수 있다.
+앱을 열면 Android Automotive의 차량 정보로 입차 조건을 계산한다. 입구 안내가 가능한 부설 주차장을 먼저 표시하고 대안은 아래에 표시한다. 체류 시간과 구매 할인 가정은 상세 화면의 요금 조건에서 바꿀 수 있다.
 
 - **공식 공개 정보** · 코엑스 지하 높이, 승용차 기본요금, 10만 원 구매 할인. 2026-11-08 확인. [진입 높이](https://business.coex.co.kr/guide/conference-room-parking-information/general-vehicle/) · [요금·할인](https://www.coex.co.kr/guide/parking-information/fee/)
-- **시연 입력** · 차량 제원·전기차 여부, 목적지 선택, 입구 좌표, 주변 대안, 할인 조건 충족 여부. 전기차 입차 조건처럼 확보하지 못한 항목은 미확인으로 표시한다.
-- **연동 상태** · 현재 APK는 Android Automotive용 시연 프로토타입이다. SDK 호출, 외부 주차 데이터 API, 실시간 주차 상황, 실제 차량 치수 수신은 후속 작업이다. 경로 요청은 명시적인 `SampleTrip.SimulatedNavigation`에서 끝나며 화면에는 “시연 어댑터 요청 처리 · 실제 길안내 시작 아님”으로 표시한다.
+- **차량 정보** · AAOS `CarPropertyManager`에서 제조사·차종·연식·연료·외부 치수를 읽는다. 높이 조회가 안 되면 현재 등록한 정확한 모델·연식의 공식 기본 제원만 쓴다. 현재 제원표는 2025 Hyundai IONIQ 5 N 한 항목이다. 2026-11-08 확인. [AAOS 속성](https://developer.android.com/reference/android/car/VehiclePropertyIds) · [제조사 제원](https://dmassets.hyundai.com/is/content/hyundaiautoever/IONIQ_5N_MY25pdf)
+- **시연 입력** · 목적지, 입구 좌표와 주변 대안은 시연값이다. 경로 요청은 `SampleTrip.SimulatedNavigation`에서 처리하며 화면에 시연 요청으로 표시한다. 차량 속성의 실제 Pleos 런타임 가용성은 별도로 확인한다.
+- **글꼴** · [42dot Asta Sans 원본](https://github.com/42dot/Asta-Sans/tree/69ecccd58dcb8b506f665867733b17773bc4bb9f)을 앱에 번들한다. OFL은 APK의 `res/raw/asta_sans_ofl.txt` 리소스에 포함한다.
 
 ## 빌드와 검증
 

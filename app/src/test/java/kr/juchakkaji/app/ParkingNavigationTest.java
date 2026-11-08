@@ -1,6 +1,9 @@
 package kr.juchakkaji.app;
 
 import org.junit.Test;
+
+import static kr.juchakkaji.app.VehicleProfile.DriveType.ELECTRIC;
+import static kr.juchakkaji.app.VehicleProfile.DriveType.NON_ELECTRIC;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
@@ -29,7 +32,7 @@ public final class ParkingNavigationTest {
         }
     }
     private ParkingNavigation.Selection select(ParkingNavigation nav) {
-        return nav.select(nav.options(1850, false, 120, true).get(0)).orElseThrow();
+        return nav.select(nav.options(1850, NON_ELECTRIC, 120, true).get(0)).orElseThrow();
     }
     @Test public void newestVisitOwnsOptionsAndInvalidatesOldSelection() {
         Fake fake = new Fake();
@@ -39,8 +42,8 @@ public final class ParkingNavigationTest {
         List<ParkingPlan.Lot> newest = List.of(SampleTrip.LOTS.get(1));
         fake.visit("second", newest);
         assertEquals("second", nav.visit().id());
-        assertEquals(1, nav.options(1850, false, 120, true).size());
-        assertEquals(newest.get(0), nav.options(1850, false, 120, true).get(0).lot());
+        assertEquals(1, nav.options(1850, NON_ELECTRIC, 120, true).size());
+        assertEquals(newest.get(0), nav.options(1850, NON_ELECTRIC, 120, true).get(0).lot());
         assertEquals(ParkingNavigation.Status.STALE, nav.confirm(old));
         assertTrue(fake.requests.isEmpty());
     }
@@ -101,7 +104,7 @@ public final class ParkingNavigationTest {
         Fake fake = new Fake();
         ParkingNavigation nav = new ParkingNavigation(fake, () -> {});
         fake.visit("visit", SampleTrip.LOTS);
-        for (ParkingPlan.Option option : nav.options(2250, true, 120, true)) {
+        for (ParkingPlan.Option option : nav.options(2250, ELECTRIC, 120, true)) {
             if (option.fit() != ParkingPlan.Fit.MATCHES_RECORDED_RULES) assertTrue(nav.select(option).isEmpty());
         }
         assertTrue(fake.requests.isEmpty());
@@ -112,7 +115,7 @@ public final class ParkingNavigationTest {
         ParkingNavigation nav = new ParkingNavigation(fake, () -> {});
         assertNull(nav.lastRequest());
         fake.visit(SampleTrip.VISIT, SampleTrip.LOTS);
-        ParkingPlan.Option alternative = nav.options(2250, false, 120, true).get(0);
+        ParkingPlan.Option alternative = nav.options(2250, NON_ELECTRIC, 120, true).get(0);
         assertEquals(SampleTrip.LOTS.get(1), alternative.lot());
         ParkingNavigation.Selection selection = nav.select(alternative).orElseThrow();
         assertNull(nav.lastRequest());
@@ -127,7 +130,7 @@ public final class ParkingNavigationTest {
         assertEquals(ParkingNavigation.Status.SIMULATED, receipt.outcome());
         assertEquals(1, fake.requests.size());
         nav.invalidateSelections();
-        nav.options(1850, true, 60, false);
+        nav.options(1850, ELECTRIC, 60, false);
         assertSame(receipt, nav.lastRequest());
     }
 
@@ -139,7 +142,7 @@ public final class ParkingNavigationTest {
         nav.confirm(first);
         ParkingNavigation.Receipt previous = nav.lastRequest();
         assertEquals(ParkingNavigation.Status.ACCEPTED, previous.outcome());
-        ParkingNavigation.Selection next = nav.select(nav.options(2250, false, 120, true).get(0)).orElseThrow();
+        ParkingNavigation.Selection next = nav.select(nav.options(2250, NON_ELECTRIC, 120, true).get(0)).orElseThrow();
         assertSame(previous, nav.lastRequest());
         fake.result = NavigationPort.Result.REJECTED;
         fake.throwsFailure = throwsFailure;
