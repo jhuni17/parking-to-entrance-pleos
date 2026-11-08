@@ -241,7 +241,7 @@ public final class MainActivity extends Activity {
         boolean compact = getResources().getConfiguration().screenWidthDp < 440;
         LinearLayout cost = compact ? row() : column();
         TextView amount = label(won(option.expectedWon()), 27, 700, ink);
-        TextView duration = label((quote.stayMinutes() / 60) + "시간 예상", 13, 500, muted);
+        TextView duration = label(quote.durationText(), 13, 500, muted);
         cost.addView(amount);
         cost.addView(duration);
         if (compact) {
@@ -367,23 +367,30 @@ public final class MainActivity extends Activity {
         VisitQuoteState.Token token = quote.open();
         LinearLayout body = column();
         body.setPadding(dp(24), dp(8), dp(24), 0);
-        CheckBox twoHours = new CheckBox(this);
-        twoHours.setText("2시간 기준 (해제 시 1시간)");
-        twoHours.setTypeface(font);
-        twoHours.setChecked(quote.stayMinutes() == 120);
-        body.addView(twoHours);
+        body.addView(label("체류 시간(분) · 앱 내부 입력 정책: 정수 1~360분", 16, 400, ink));
+        EditText minutes = new EditText(this);
+        minutes.setInputType(InputType.TYPE_CLASS_NUMBER);
+        minutes.setSingleLine(true);
+        minutes.setText(Integer.toString(quote.stayMinutes()));
+        body.addView(minutes);
         CheckBox discount = new CheckBox(this);
         discount.setText("구매 할인 조건 충족 가정");
         discount.setTypeface(font);
         discount.setChecked(quote.purchaseDiscount());
         body.addView(discount);
-        show(dialog().setTitle("요금 조건 · " + navigation.visit().name())
-                .setMessage("현재 방문에만 적용 · 구매 할인 " + (quote.purchaseDiscount() ? "적용 가정" : "미적용"))
+        AlertDialog alert = show(dialog().setTitle("요금 조건 · " + navigation.visit().name())
+                .setMessage("체류 시간은 다음 방문에도 유지 · 구매 할인은 현재 방문에만 적용")
                 .setView(body).setNegativeButton("취소", null)
-                .setPositiveButton("적용", (d, which) -> {
-                    quote.syncVisit(navigation.visitVersion());
-                    if (quote.apply(token, twoHours.isChecked() ? 120 : 60, discount.isChecked())) refresh();
-                }));
+                .setPositiveButton("적용", null));
+        alert.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(view -> {
+            quote.syncVisit(navigation.visitVersion());
+            if (!quote.apply(token, minutes.getText().toString(), discount.isChecked())) {
+                minutes.setError("정수 1~360분을 입력하세요. 방문이 바뀌었다면 창을 다시 여세요.");
+                return;
+            }
+            alert.dismiss();
+            refresh();
+        });
     }
 
     private void confirmPreview(EntranceConfirmation preview) {
