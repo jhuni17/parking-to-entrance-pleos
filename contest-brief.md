@@ -174,6 +174,13 @@ Windows 설치·화면·실제 SDK 콜백·차량 신호·실차·음성·음향
 
 일반 조건 갱신은 과거 기록을 유지한다. 새 방문지는 기록을 지우고 요청 ID가 연결된 입구 되울림은 원래 방문지와 기록을 유지한다. 근거는 `ParkingNavigationTest.simulatedAlternativeReceiptStartsEmptyAndSurvivesConditionChanges`, `echoesKeepReceiptAndNewVisitClearsIt`, `visitDuringRequestCannotReceiveOldOutcome`이다. 실패 결과는 공유 표시 모델 `RequestRecheck`에서 “입구 경로 요청 실패”, 실제 수락 상태는 “내비 요청 수락”으로 구분한다. 현재 시연 어댑터는 SIMULATED만 반환하므로 실패·실제 수락의 화면 관측을 주장하지 않는다. 거절·예외의 계약 근거는 `rejectionReplacesPreviousReceiptAndDuplicateDoesNothing`, `exceptionReplacesPreviousReceiptAndDuplicateDoesNothing`이다.
 
+
+요청 **완료 후** 조건 갱신은 이미 생성된 Receipt를 유지한다(`RequestRecheckTest`). 요청 **도중** 조건 갱신은 전송 직전 보관한 방문 버전과 요청 ID로 완료를 판정한다(`RequestCompletionTest`). 같은 방문의 최신 발행 요청이면 선택 generation이 바뀌어도 선택 시설·원래 방문지·입구·반환 결과를 기록한다. 전송 전 만료·중복 소비 검사는 유지한다. 새 목적지 이벤트는 ID·이름·시설 목록이 같아도 새 방문이므로 이전 반환이 IDLE·빈 기록을 덮어쓰지 않는다. 더 최신 재진입 요청이 완료되면 이전 요청의 늦은 반환도 최신 기록을 덮어쓰지 않는다. 요청 ID가 연결된 동기·지연 입구 되울림은 방문과 기록을 유지한다.
+
+합성 대조(2026-11-09, `RequestCompletionTest`, 실행 관측 아님): `VehicleProfile.fromHardware` → `VehicleRefreshState`로 1850mm·NON_ELECTRIC·120분·구매 할인 가정을 적용해 코엑스 0원을 선택한다. fake `requestEntrance` 내부에서 반환 전에 2250mm로 갱신한다. ACCEPTED와 SIMULATED 각각 반환 후 코엑스·원래 방문지·선택 입구·결과 Receipt가 남고 요청은 1건이다. 두 추천 기준 모두 코엑스 RESTRICTED, 대안 A 6,000원, 요청 가능 1곳이며 보존 기록의 `RequestRecheck`는 **입구 재확인 필요**다. 대안 선택까지 1건, 명시적 확인 후에만 원래 방문지와 시연 좌표 37.51400, 127.06100으로 총 2건이다. 이전 ACCEPTED 뒤 다음 요청 도중 같은 갱신 후 REJECTED 또는 RuntimeException이면 최신 실패 기록·status로 교체하고 **입구 경로 요청 실패**를 포함한다. 전송 전 갱신은 STALE·0건, 전송한 선택의 중복 확인은 추가 요청이 없다.
+
+이는 현재 시연 어댑터의 화면 재현이나 실제 SDK 콜백 관측이 아닌 결정적 fake 계약이다. `MainActivity` 변경 없이 기존 `refresh`·`showReceipt`가 보존 Receipt를 소비한다. 차량값·출처는 상세, 대안 이유는 최대 한 줄을 유지한다. 로컬 Java 부재로 신규 테스트 실행·unsigned APK 검증은 미완료이며 새 후보 전체 SHA의 GitHub Actions XML·Gradle 로그·입력 해시·APK 검증이 필요하다. 기준 후보 성공은 새 후보 증거로 대체하지 않는다. Windows·실제 런타임 및 최종 제출 단계의 증거도 별도 미확보다.
+
 Activity 재생성에서는 **체류 시간만 복원**한다. `onSaveInstanceState`가 체류 시간 키만 저장하고 `onCreate`가 읽어 새 `VisitQuoteState`를 만든다. 구매 할인은 저장하거나 과거 할인 키에서 읽지 않으며 미적용으로 시작한다. 차량은 `onStart`에서 다시 조회하며, 요청 기록·선택·확인창은 복원하지 않고 자동 재전송도 하지 않는다. 실제 Android 재생성은 미관측이며 소스 경로 대조만 수행했다.
 
 ## 이전 구현 기록 — 현재 절차에 적용하지 않음

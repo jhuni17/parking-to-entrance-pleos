@@ -105,7 +105,7 @@ final class ParkingNavigation {
         if (selection == null || selection.owner != this || selection.generation != generation || selection.consumed) return Status.STALE;
         selection.consumed = true;
         long id = ++requestId;
-        long requestedGeneration = generation;
+        long requestedVisit = visitVersion;
         sent.add(id); // Register before the call: an adapter can echo synchronously.
         NavigationPort.Result result;
         try {
@@ -115,7 +115,9 @@ final class ParkingNavigation {
         }
         Status outcome = result == NavigationPort.Result.ACCEPTED ? Status.ACCEPTED
                 : result == NavigationPort.Result.SIMULATED ? Status.SIMULATED : Status.REJECTED;
-        if (generation == requestedGeneration) {
+        // Refresh expires selections, but cannot erase a sent request's result.
+        // A new visit or a newer reentrant request owns subsequent presentation.
+        if (visitVersion == requestedVisit && requestId == id) {
             lastRequest = new Receipt(selection.lot, selection.request, outcome);
             status = outcome;
             changed.run();
