@@ -195,3 +195,20 @@ Windows 화면·Activity 재생성·실제 SDK 콜백·실차·음성·음향 �
 Oracle의 새 후보 커밋 후 기존 GitHub Actions에서 `testPleosDebugUnitTest`·`assemblePleosDebug` 성공, 기존·신규 XML 실패·오류·건너뜀 모두 0을 확인해야 한다. 새 전체 SHA가 `source-sha.txt`와 `pleos-build-<full SHA>`에 일치하고 README의 두 `sha256sum` 검사, 입력 해시·APK 해시·Gradle 로그·APK 패키지·ZIP·unsigned 검사가 통과해야 한다. 기준 SHA 성공으로 대신하지 않는다. 새 커밋이 없으므로 해당 아티팩트는 미확보이며 수용 항목 7은 대기다. 커밋 후 `git diff --check 492be84715c2122cc00d04f42b4d4a9f3f3551d4 HEAD`와 같은 범위 네 파일 제한·전체 diff 검증도 대기다. 작업 트리 검사는 커밋 범위 검사를 대신하지 않는다.
 
 외부 출처·확인일은 기존 SampleTrip 및 README 기록을 유지하며 이번에는 외부 재확인을 하지 않았다. Windows 설치·화면·실제 SDK 콜백·실차·음성·음향·공개 배포 증거는 없다. 1차 필수 제안서·서명 동의서, 선택 프로토타입·적격 GitHub/APK, 최종 PT 필수 작동 앱 시연의 구분을 유지한다. 합성 검증·unsigned CI·실제 런타임 관측·제출 완료는 별도 단계다.
+
+
+### 등록된 허용 차폭 비교 — width-fit (소스 대조일 2026-11-09)
+
+아래는 새 `VehicleWidthTest`의 합성 AAOS 입력과 가상 시설 사례이며 외부 시설 사실이나 실제 신호 관측이 아니다. 높이 1850mm·NON_ELECTRIC·120분·할인 미적용·정상 입구를 고정한다. 가상 부설은 최대 허용 차량 너비 2000mm·0원, 가상 대안은 2200mm·6,000원이다. 너비 **1990→2010mm**만 바꾸면 부설 우선·요금 우선 모두 **0원 부설 → 6,000원 대안**으로 바뀐다. 부설 요금은 0원 그대로이고 RESTRICTED·요청 불가가 된다. 이는 차량 제원과 같은 기준의 **최대 허용 차량 너비** 비교이며 통로 실측 폭 비교나 통과 안전 보증이 아니다. 현재 `SampleTrip.LOTS`에는 차폭 조건이 등록되지 않았다. 코엑스 차폭 제한을 추가하거나 추정하지 않았다.
+
+2000mm 경계는 충족한다. 차량 너비 null·배열 누락·0·음수는 미확인으로 처리하여 조건이 등록된 두 시설 모두 NEEDS_CHECK·요청 불가다. 등록 조건의 허용값 누락·0 이하도 NEEDS_CHECK이며, 조건 자체 미등록인 기존 시설은 기존 판단을 유지한다. 미등록을 차폭 무제한·적합으로 표시하지 않는다. 상세에 차량 너비와 출처, 시설 허용값과 출처, 판단 범위를 표시하고 첫 화면에는 짧은 대안 이유 하나만 최대 한 줄로 표시한다.
+
+정확한 HYUNDAI·IONIQ 5 N·2025에서 높이 1850mm만 하드웨어 입력이면 높이는 차량 속성값, 너비 1940mm는 제조사 보완으로 각각 표시한다. 하드웨어 너비 2010mm가 있으면 이를 우선하며 너비 제조사 출처 표시는 사라진다. 제조사 보완 범위와 기존 외부 출처·확인일은 VehicleProfile 및 README 기록을 유지하며 이번에는 외부 재확인하지 않았다.
+
+소스 assertion 근거는 `widthChangeFlowsFromHardwareThroughBothPrioritiesAndConfirmedNavigation`(두 기준·순서·0원 보존·RESTRICTED·설명·선택·요청), `inclusiveBoundaryAndUnknownWidthsRemainDistinctFromUnregistered`(경계·누락·미등록·요청 수), `independentCatalogSourcesAndExactModelRule`(독립 출처·정확한 모델), `widthMatchDoesNotBypassExistingBlocksAndExplanationUsesSuppliedVerdict`(높이·전기차 정책·좌표 차단·전달 판정)이다. 변경·재계산·설명·선택까지 fake 요청 0건이고 이전 선택은 STALE이다. 새 대안을 확인할 때만 원래 방문지와 가상 입구 37.6, 127.1로 1건 요청한다. 되울림은 방문지를 보존하며 REJECTED는 실패 receipt로 남고 중복 확인은 추가 요청하지 않는다. 테스트는 기존 `app/src/test/java`에 있어 `testPleosDebugUnitTest` 대상이다.
+
+로컬 PATH에 Java·javac·Gradle이 없어 JVM 테스트·unsigned APK 빌드는 미실행이다. 도구 설치·네트워크·자격 증명·CI 호출·커밋·푸시는 수행하지 않았다. 합성 assertion 소스 대조는 실행 통과 증거가 아니다. Oracle의 새 커밋 후 기존 GitHub Actions에서 새 전체 SHA에 결합된 `testPleosDebugUnitTest`·`assemblePleosDebug` 성공, 기존·신규 XML 실패·오류·건너뜀 모두 0을 확인해야 한다. `source-sha.txt`와 `pleos-build-<full SHA>` 일치, README의 두 `sha256sum` 검사, 입력 해시·APK 해시·Gradle 로그·APK 패키지·ZIP·unsigned 검사는 대기다. 기준 후보 성공으로 대체하지 않는다.
+
+작업 트리의 기준 `1a984a3c81387935ad2ad7bed53c10f156119bd9` 대비 diff 공백 검사와 지정 8개 editPaths 제한을 확인한다. 새 커밋이 없으므로 같은 기준부터 새 HEAD까지의 최종 diff 검사 및 후보 아티팩트는 대기다. README 증거 계약·주행 제한·서명·권한·의존성·워크플로·게시 설정은 변경하지 않는다.
+
+Windows 설치·화면·실제 SDK 콜백·실제 차량 신호·실차·음성·음향·공개 배포 관측 증거는 없다. 합성 테스트·unsigned CI·실제 런타임 관측·제출 완료는 별도 단계다. 1차 필수 제안서·서명 동의서 확보, 선택 프로토타입·적격 GitHub/APK, 최종 PT 필수 작동 앱 시연의 구분을 유지하며 이번 작업은 제출·시연 완료를 뜻하지 않는다.

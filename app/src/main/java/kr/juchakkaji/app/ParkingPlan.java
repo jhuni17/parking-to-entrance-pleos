@@ -30,8 +30,29 @@ final class ParkingPlan {
         }
     }
 
+    /** Maximum permitted vehicle specification width, never a measured aisle width.
+     * null condition means unregistered; a condition with no positive maximum is unknown. */
+    record WidthCondition(Integer maximumMm, String provenance) {
+        String details() {
+            return "최대 허용 차량 너비 " + (maximumMm == null || maximumMm <= 0
+                    ? "확인 필요" : maximumMm + "mm")
+                    + "\n차폭 조건 출처 " + provenance
+                    + "\n차량 제원과 같은 기준의 허용 차폭만 비교 · 통로 폭/통과 안전 판단 아님";
+        }
+    }
+
     record Lot(String name, String type, boolean attached, Integer heightLimitMm,
-               EvEntry evEntry, Tariff tariff, Entrance entrance, String provenance) {}
+               EvEntry evEntry, Tariff tariff, Entrance entrance, String provenance, WidthCondition widthCondition) {
+        Lot(String name, String type, boolean attached, Integer heightLimitMm,
+            EvEntry evEntry, Tariff tariff, Entrance entrance, String provenance) {
+            this(name, type, attached, heightLimitMm, evEntry, tariff, entrance, provenance, null);
+        }
+        String widthDetails() {
+            return widthCondition == null
+                    ? "차폭 조건 미등록 · 차폭 무제한 또는 적합을 뜻하지 않음"
+                    : widthCondition.details();
+        }
+    }
 
     record RequestAvailability(boolean available, String reason) {}
 
@@ -70,9 +91,15 @@ final class ParkingPlan {
 
     static List<Option> compare(List<Lot> lots, Integer vehicleHeightMm, DriveType drive,
                                 int stayMinutes, boolean qualifiesForPurchaseDiscount, Priority priority) {
+        return compare(lots, vehicleHeightMm, null, drive, stayMinutes, qualifiesForPurchaseDiscount, priority);
+    }
+
+    static List<Option> compare(List<Lot> lots, Integer vehicleHeightMm, Integer vehicleWidthMm,
+                                DriveType drive, int stayMinutes, boolean qualifiesForPurchaseDiscount,
+                                Priority priority) {
         List<Option> options = new ArrayList<>();
         for (Lot lot : lots) {
-            options.add(evaluate(lot, vehicleHeightMm, drive, stayMinutes, qualifiesForPurchaseDiscount));
+            options.add(evaluate(lot, vehicleHeightMm, vehicleWidthMm, drive, stayMinutes, qualifiesForPurchaseDiscount));
         }
         Comparator<Option> existing = Comparator.comparing(Option::fit)
                 .thenComparing(option -> !option.lot().attached())
@@ -90,7 +117,7 @@ final class ParkingPlan {
         return options;
     }
 
-    private static Option evaluate(Lot lot, Integer heightMm, DriveType drive,
+    private static Option evaluate(Lot lot, Integer heightMm, Integer widthMm, DriveType drive,
                                    int stayMinutes, boolean qualifiesForPurchaseDiscount) {
         Tariff tariff = lot.tariff();
         Integer base = tariff == null ? null : tariff.quote(stayMinutes, false);
@@ -101,6 +128,17 @@ final class ParkingPlan {
         }
         if (drive == DriveType.ELECTRIC && lot.evEntry() == EvEntry.RESTRICTED) {
             return new Option(lot, Fit.RESTRICTED, "등록된 전기차 입차 제한", base, expected);
+        }
+        WidthCondition width = lot.widthCondition();
+        if (width != null && width.maximumMm() != null && width.maximumMm() > 0
+                && widthMm != null && widthMm > width.maximumMm()) {
+            return new Option(lot, Fit.RESTRICTED, "최대 허용 차폭 초과", base, expected);
+        }
+        if (width != null && (width.maximumMm() == null || width.maximumMm() <= 0)) {
+            return new Option(lot, Fit.NEEDS_CHECK, "시설 최대 허용 차폭 확인 필요", base, expected);
+        }
+        if (width != null && (widthMm == null || widthMm <= 0)) {
+            return new Option(lot, Fit.NEEDS_CHECK, "차량 너비 확인 필요", base, expected);
         }
         if (heightMm == null) {
             return new Option(lot, Fit.NEEDS_CHECK, "차량 높이 확인 필요", base, expected);

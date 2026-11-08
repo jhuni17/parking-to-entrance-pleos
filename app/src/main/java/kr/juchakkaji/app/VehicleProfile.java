@@ -5,7 +5,10 @@ import android.car.FuelType;
 import java.util.Locale;
 
 record VehicleProfile(String model, Integer heightMm, Integer widthMm, DriveType drive,
-                      boolean catalogHeight) {
+                      boolean catalogHeight, boolean catalogWidth) {
+    VehicleProfile(String model, Integer heightMm, Integer widthMm, DriveType drive, boolean catalogHeight) {
+        this(model, heightMm, widthMm, drive, catalogHeight, false);
+    }
     enum DriveType { ELECTRIC, NON_ELECTRIC, NEEDS_CHECK }
 
     static final VehicleProfile UNKNOWN = new VehicleProfile("", null, null, DriveType.NEEDS_CHECK, false);
@@ -17,6 +20,7 @@ record VehicleProfile(String model, Integer heightMm, Integer widthMm, DriveType
         Integer height = dimension(dimensions, 0);
         Integer width = dimension(dimensions, 2);
         boolean catalogHeight = false;
+        boolean catalogWidth = false;
         // The brochure covers one exact MY25 model. Generic model or missing year is ambiguous.
         if ("HYUNDAI".equals(normalized(make)) && "IONIQ5N".equals(normalized(modelName))
                 && Integer.valueOf(2025).equals(year)) {
@@ -24,9 +28,12 @@ record VehicleProfile(String model, Integer heightMm, Integer widthMm, DriveType
                 height = 1585;
                 catalogHeight = true;
             }
-            if (width == null) width = 1940;
+            if (width == null) {
+                width = 1940;
+                catalogWidth = true;
+            }
         }
-        return new VehicleProfile(modelName, height, width, driveType(fuels), catalogHeight);
+        return new VehicleProfile(modelName, height, width, driveType(fuels), catalogHeight, catalogWidth);
     }
 
     private static String normalized(String value) {

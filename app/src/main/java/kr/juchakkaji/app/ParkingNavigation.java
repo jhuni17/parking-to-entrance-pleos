@@ -56,7 +56,11 @@ final class ParkingNavigation {
     }
     List<ParkingPlan.Option> options(Integer height, VehicleProfile.DriveType drive, int minutes,
                                     boolean discount, ParkingPlan.Priority priority) {
-        return ParkingPlan.compare(visit == null ? List.of() : visit.lots(), height, drive, minutes, discount, priority);
+        return options(height, null, drive, minutes, discount, priority);
+    }
+    List<ParkingPlan.Option> options(Integer height, Integer width, VehicleProfile.DriveType drive,
+                                    int minutes, boolean discount, ParkingPlan.Priority priority) {
+        return ParkingPlan.compare(visit == null ? List.of() : visit.lots(), height, width, drive, minutes, discount, priority);
     }
     Optional<Selection> select(ParkingPlan.Option option) {
         if (visit == null || !visit.lots().contains(option.lot())) return Optional.empty();

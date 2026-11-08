@@ -179,7 +179,7 @@ public final class MainActivity extends Activity {
         quote.syncVisit(navigation.visitVersion());
         navigation.invalidateSelections();
         destination.setText(navigation.visit() == null ? "목적지 없음" : navigation.visit().name());
-        List<Option> options = navigation.options(totalHeight.effectiveMm(vehicle), vehicle.drive(), quote.stayMinutes(), quote.purchaseDiscount(), priority);
+        List<Option> options = navigation.options(totalHeight.effectiveMm(vehicle), vehicle.widthMm(), vehicle.drive(), quote.stayMinutes(), quote.purchaseDiscount(), priority);
         RecommendationExplanation explanation = RecommendationExplanation.create(vehicle, totalHeight, readingVehicle, options, priority);
         setStatus(readingVehicle ? "차량 정보 확인 중"
                 : options.isEmpty() ? "시설 정보 없음"
@@ -277,7 +277,7 @@ public final class MainActivity extends Activity {
         String text = lot.type() + "\n입구 높이 제한 " + meters(lot.heightLimitMm())
                 + " (" + (lot.heightLimitMm() == null ? "미확인" : lot.heightLimitMm() + "mm") + ")"
                 + "\n" + explanation.vehicleDetails()
-                + (vehicle.widthMm() == null ? "" : "\n차량 너비 " + meters(vehicle.widthMm()))
+                + "\n" + lot.widthDetails()
                 + (vehicle.model().isEmpty() ? "" : "\n차량 " + vehicle.model())
                 + "\n" + option.requestAvailability().reason() + "\n\n" + lot.provenance();
         if (lot.tariff() != null && !lot.tariff().purchaseRule().isEmpty()) {

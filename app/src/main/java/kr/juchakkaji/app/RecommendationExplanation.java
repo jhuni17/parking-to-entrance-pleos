@@ -27,6 +27,10 @@ record RecommendationExplanation(String headline, String vehicleDetails, String 
             case NEEDS_CHECK -> "확인 필요";
         };
         String details = "차량 높이 " + height + "\n연료 유형 " + fuel;
+        details += "\n차량 너비 " + (vehicle.widthMm() == null || vehicle.widthMm() <= 0
+                ? "확인 필요" : vehicle.widthMm() + "mm · "
+                + (vehicle.catalogWidth() ? "제조사 기본 제원" : "차량 속성값"));
+        if (vehicle.catalogWidth()) details += "\n너비 출처 " + VehicleProfile.CATALOG_SOURCE;
         if (vehicle.catalogHeight()) details += "\n높이 출처 " + VehicleProfile.CATALOG_SOURCE;
         details += "\n사용자 확인 총높이 " + (heightInput.confirmedMm() == null
                 ? "미입력" : heightInput.confirmedMm() + "mm · 사용자 직접 확인값")
@@ -45,7 +49,7 @@ record RecommendationExplanation(String headline, String vehicleDetails, String 
             for (ParkingPlan.Option option : options) {
                 if (!headline.isEmpty()) break;
                 if (option.lot().attached() && !option.requestAvailability().available()) {
-                    String reason = option.requestAvailability().reason()
+                    String reason = option.requestAvailability().reason().split(" · ", 2)[0]
                             .replace("표기 높이 제한 초과", "높이 초과")
                             .replace("전기차 입차 조건 확인 필요", "전기차 입차 조건 미확인");
                     headline = option.lot().name() + " · " + reason;
