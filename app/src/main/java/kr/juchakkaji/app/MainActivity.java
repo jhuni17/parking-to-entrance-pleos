@@ -8,6 +8,8 @@ import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.RippleDrawable;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
@@ -32,6 +34,9 @@ public final class MainActivity extends Activity {
     private ParkingNavigation navigation;
     private VehicleProfile vehicle = VehicleProfile.UNKNOWN;
     private int readGeneration;
+    private final Handler vehicleHandler = new Handler(Looper.getMainLooper());
+    private final VehicleReadResult.Session vehicleSession = new VehicleReadResult.Session();
+    private Runnable pendingVehicleRetry;
     private boolean readingVehicle;
     private int stayMinutes = 120;
     private boolean purchaseDiscount;
@@ -107,26 +112,53 @@ public final class MainActivity extends Activity {
         readingVehicle = true;
         vehicle = VehicleProfile.UNKNOWN;
         refresh();
+        vehicleHandler.removeCallbacksAndMessages(null);
+        pendingVehicleRetry = null;
+        vehicleSession.start(generation);
+        readVehicle(generation, 0);
+    }
+
+    private void readVehicle(int generation, int attempt) {
+        if (!vehicleSession.isCurrent(generation) || isDestroyed()) return;
         var context = getApplicationContext();
         carReader.execute(() -> {
-            VehicleProfile current = AndroidVehicleInfo.read(context);
-            runOnUiThread(() -> {
+            VehicleReadResult result = AndroidVehicleInfo.read(context);
+            vehicleHandler.post(() -> {
                 if (generation != readGeneration || isDestroyed()) return;
-                vehicle = current;
+                VehicleReadResult.Session.Action action = vehicleSession.accept(generation, attempt, result);
+                if (action == VehicleReadResult.Session.Action.IGNORE) return;
+                if (action == VehicleReadResult.Session.Action.RETRY) {
+                    pendingVehicleRetry = () -> {
+                        pendingVehicleRetry = null;
+                        readVehicle(generation, 1);
+                    };
+                    vehicleHandler.postDelayed(pendingVehicleRetry, VehicleReadResult.Session.RETRY_DELAY_MS);
+                    return;
+                }
+                vehicle = result.profile();
                 readingVehicle = false;
                 refresh();
             });
         });
     }
 
+    private void stopVehicleRead() {
+        readGeneration++;
+        vehicleSession.stop();
+        vehicleHandler.removeCallbacksAndMessages(null);
+        pendingVehicleRetry = null;
+        readingVehicle = false;
+    }
+
     @Override
     protected void onStop() {
-        readGeneration++;
+        stopVehicleRead();
         super.onStop();
     }
 
     @Override
     protected void onDestroy() {
+        stopVehicleRead();
         carReader.shutdownNow();
         super.onDestroy();
     }

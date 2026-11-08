@@ -9,26 +9,28 @@ import android.content.pm.PackageManager;
 
 /** Reads static, global AAOS properties. Call on a background thread. */
 final class AndroidVehicleInfo {
-    static VehicleProfile read(Context context) {
+    static VehicleReadResult read(Context context) {
         if (!context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_AUTOMOTIVE)) {
-            return VehicleProfile.UNKNOWN;
+            return VehicleReadResult.unavailable();
         }
         Car car = null;
         try {
             car = Car.createCar(context);
-            if (car == null || !car.isConnected()) return VehicleProfile.UNKNOWN;
+            if (car == null || !car.isConnected()) return VehicleReadResult.disconnected();
             CarPropertyManager manager = (CarPropertyManager) car.getCarManager(Car.PROPERTY_SERVICE);
-            if (manager == null) return VehicleProfile.UNKNOWN;
-            return VehicleProfile.fromHardware(
+            if (manager == null) return VehicleReadResult.disconnected();
+            return VehicleReadResult.connected(VehicleProfile.fromHardware(
                     get(manager, String.class, VehiclePropertyIds.INFO_MAKE),
                     get(manager, String.class, VehiclePropertyIds.INFO_MODEL),
                     get(manager, Integer.class, VehiclePropertyIds.INFO_MODEL_YEAR),
                     get(manager, Integer[].class, VehiclePropertyIds.INFO_EXTERIOR_DIMENSIONS),
-                    get(manager, Integer[].class, VehiclePropertyIds.INFO_FUEL_TYPE));
+                    get(manager, Integer[].class, VehiclePropertyIds.INFO_FUEL_TYPE)));
         } catch (RuntimeException | LinkageError unavailable) {
-            return VehicleProfile.UNKNOWN;
+            return VehicleReadResult.unavailable();
         } finally {
-            if (car != null) car.disconnect();
+            if (car != null) {
+                try { car.disconnect(); } catch (RuntimeException ignored) { /* Cleanup only. */ }
+            }
         }
     }
 
