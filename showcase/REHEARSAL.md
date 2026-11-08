@@ -56,14 +56,14 @@
 
 일반 조건 갱신은 과거 기록을 유지한다. 새 방문지는 기록을 지우고 요청 ID가 연결된 입구 되울림은 원래 방문지와 기록을 유지한다. 근거는 `ParkingNavigationTest.simulatedAlternativeReceiptStartsEmptyAndSurvivesConditionChanges`, `echoesKeepReceiptAndNewVisitClearsIt`, `visitDuringRequestCannotReceiveOldOutcome`이다. 실패 결과는 `routeStatus`에서 “입구 경로 요청 실패”, 실제 수락 상태는 “내비 요청 수락”으로 구분한다. 현재 시연 어댑터는 SIMULATED만 반환하므로 실패·실제 수락의 화면 관측을 주장하지 않는다. 거절·예외의 계약 근거는 `rejectionReplacesPreviousReceiptAndDuplicateDoesNothing`, `exceptionReplacesPreviousReceiptAndDuplicateDoesNothing`이다.
 
-Activity 재생성에서는 **체류 시간과 구매 할인 두 값만 복원**한다. `onSaveInstanceState`가 두 키를 저장하고 `onCreate`가 읽는다. 차량은 `onStart`에서 다시 조회하며, 요청 기록·선택·확인창은 복원하지 않고 자동 재전송도 하지 않는다. 실제 Android 재생성은 미관측이며 소스 경로 대조만 수행했다.
+Activity 재생성에서는 **체류 시간만 복원**한다. `onSaveInstanceState`가 체류 시간 키만 저장하고 `onCreate`가 읽어 새 `VisitQuoteState`를 만든다. 구매 할인은 저장하거나 과거 할인 키에서 읽지 않으며 미적용으로 시작한다. 차량은 `onStart`에서 다시 조회하며, 요청 기록·선택·확인창은 복원하지 않고 자동 재전송도 하지 않는다. 실제 Android 재생성은 미관측이며 소스 경로 대조만 수행했다.
 
 ## 이전 구현 기록 — 현재 절차에 적용하지 않음
 
 아래 항목은 과거 profile-restore·route-receipt 등 후보에 적용했던 설명의 이력이다. 현재 후보의 기능이나 현존 테스트 근거로 사용하지 않는다.
 
 - 수동 루프박스·전기차 토글, 1.85 m 고정 시작, 최초 할인 적용은 이전 시연 입력이었다. 현재 일반 화면에는 차량 수동 토글이 없다.
-- 삭제된 `DemoProfile`·`DemoProfileTest`의 네 값·네 키 복원 및 16조합 왕복 검사는 과거 profile-restore 기록이다. 현재 복원 근거는 위 MainActivity 두 값 경로뿐이다.
+- 삭제된 `DemoProfile`·`DemoProfileTest`의 네 값·네 키 복원 및 16조합 왕복 검사는 과거 profile-restore 기록이다. 현재 복원 근거는 위 MainActivity 체류 시간 단일 키 경로뿐이다.
 - “마지막 요청 없음”, “마지막 요청 · 과거 확인 기록 (현재 후보 판단과 별개)”, “시연 어댑터 요청 처리 · 실제 길안내 시작 아님”을 화면에 기대했던 기록은 이전 UI 설명이다. 현재 요약·상세·결과 문구는 위 절을 따른다.
 - 당시 selection-ready(`b8af43df19b58ff22e41c92f1a610eb3cdfe9dab` 기준), profile-restore(`589948ea1ffe72992434f36c9f264cfa5834d703` 기준), route-receipt(`d7e43092e48d140d5fb363f2d69ae4ef73291c53` 기준)의 로컬 Gradle 시도는 `gradle: command not found`(127)로 미실행이며 Java 도구도 없었다는 기록이다. 당시 지정 다섯 파일 diff 확인은 이번 두 문서 변경의 검증과 별개다. 과거 후보의 CI·XML·APK를 이번 결과로 사용하지 않는다.
 
@@ -130,7 +130,7 @@ Windows 에뮬레이터 설치·화면, 실제 Pleos 서비스 연결/속성 콜
 | 총높이 2200mm·NON_ELECTRIC | 코엑스 경계값 NEEDS_CHECK, 요청 불가 (같은 테스트) |
 | 정확한 HYUNDAI·IONIQ 5 N·2025 제원 1585mm → 확인 총높이 2250mm | 판단 2250mm, 원본 제조사 출처·URL과 사용자 직접 확인값을 별도 표시. 하드웨어 2400mm이면 사용자 2250mm보다 큰 2400mm 적용 (`catalogAndHigherHardwareKeepTheirOriginalSources`) |
 | 1000·4000 입력 / 빈값·0·음수·999·4001·소수·문자·정수 초과 입력 / 취소 | 경계 허용 / 미적용 / 기존값 유지 (`inputPolicyInvalidAndCancelledInputDoNotMutateAndSessionsExpire`, 적용·취소 리스너) |
-| 보완 후 화면 종료 → 새 onStart | 보완값 삭제 후 차량 재조회. 이전 세션 입력창 적용·삭제 차단. Bundle은 체류 시간·할인만 저장하며 보완값 복원 없음 (같은 세션 테스트와 MainActivity 수명주기 대조) |
+| 보완 후 화면 종료 → 새 onStart | 보완값 삭제 후 차량 재조회. 이전 세션 입력창 적용·삭제 차단. Bundle은 체류 시간만 저장하며 보완값 복원 없음 (같은 세션 테스트와 MainActivity 수명주기 대조) |
 | 적용·설명 갱신 → 이전 선택 확인 → 새 대안 A 선택 확인 | 갱신 자체 요청 0건, 이전 선택 STALE. 새 선택 확인만 원래 방문지와 37.51400, 127.06100으로 1건. 중복 확인 추가 요청 없음. fake REJECTED는 실패로 기록 (`hardwareSupplementFlowsThroughExplanationAndConfirmedNavigation`) |
 
 원본 높이·기존 출처, 사용자 확인 총높이, 판단 적용 높이는 상세에만 구분한다. 첫 화면은 기존 대안 이유 최대 한 줄을 유지한다. 삭제·적용은 refresh에서 후보·설명을 함께 갱신하고 선택을 만료시킨다. 새 테스트는 기존과 같은 `app/src/test/java`에 있어 `testPleosDebugUnitTest` 대상이다. 위 assertion 및 소스 경로 대조는 실행 통과 증거가 아니다.
@@ -138,3 +138,14 @@ Windows 에뮬레이터 설치·화면, 실제 Pleos 서비스 연결/속성 콜
 이번 작업 환경 PATH에 Java·javac·Gradle이 없어 테스트·unsigned APK 빌드는 실행하지 못했다. 도구 설치·네트워크·CI 호출·커밋·푸시는 수행하지 않았다. 새 후보 SHA와 CI 아티팩트가 제공되지 않아 수용 항목 8은 대기다. Oracle의 새 커밋 후 GitHub Actions에서 `testPleosDebugUnitTest`·`assemblePleosDebug`, 신규 VehicleHeightTest 및 기존 ParkingNavigationTest 등 XML 실패·오류·건너뜀 0을 확인해야 한다. `source-sha.txt`와 `pleos-build-<full SHA>`가 새 전체 SHA와 일치해야 하며 README의 두 sha256sum 검사, 입력·APK 해시, Gradle 로그, APK 패키지·ZIP·unsigned 검사를 확인한다. 기준 후보 성공으로 대체하지 않는다. 커밋 후 `git diff --check 1cbfb84534174c5d459131be2c52581939d66cc7 HEAD` 및 같은 범위의 지정 6개 경로 제한도 확인해야 한다.
 
 1차 제안서·서명 동의서 필수와 최종 PT 작동 앱 시연 필수 구분을 유지한다. 외부 자료는 기존 출처·확인일을 따르며 이번에는 재확인하지 않았다. Windows 설치·화면·수명주기, 실제 SDK 콜백·차량 신호·실차·음성·음향 증거는 미확보다.
+
+
+### 방문별 요금 조건: fake 합성 검증
+
+새 목적지를 받으면 체류 시간은 유지하고 구매 할인 가정은 미적용으로 초기화한다. 사용자는 새 방문의 할인 자격을 다시 확인해야 한다. `ParkingNavigation.visitVersion`은 상관 요청 ID로 식별된 입구 되울림을 제외한 목적지 이벤트마다 증가한다. ID·이름이 같은 이벤트도 새 방문이다. 선택 만료 generation과 달리 일반 refresh·선택 만료·확인은 방문 버전을 바꾸지 않아 같은 방문의 할인은 유지된다.
+
+`VisitQuoteStateTest`의 재현 순서와 기대값(실제 SDK 관측 아님): 합성 AAOS 1850mm·NON_ELECTRIC·120분으로 fake 방문 A 수신 → 요금창 할인 적용 → 코엑스 0원 → 같은 SampleTrip 시설의 방문 B 수신 → 할인 false·120분 유지·코엑스 12,000원·대안 A 6,000원. A의 요금창 토큰으로 60분·할인을 적용해도 B의 두 조건은 바뀌지 않는다. B에서 새로 연 창은 현재 할인 상태를 표시하고 적용 가능하며 취소는 값을 쓰지 않는다. 창 제목은 방문지, 설명은 현재 방문에만 적용됨과 할인 미적용/적용 가정을 표시한다. 이전 창의 적용은 토큰 검사 후 닫히며 새 방문 조건을 덮어쓰지 않는다.
+
+할인 초기화·요금 갱신·오래된 창 적용은 요청 0건이고 A의 선택은 STALE이다. B의 코엑스 선택 확인만 B / 37.51200, 127.06000으로 1건 요청한다. 중복 확인은 추가 요청하지 않고 REJECTED는 실패로 기록한다. 동기·지연 입구 되울림은 방문과 할인을 유지한다. 할인과 무관하게 2250mm의 코엑스는 RESTRICTED이며 높이 누락은 요청 가능 0건이다. 저장된 60분으로 새 상태를 만들면 60분·할인 미적용이고 같은 Activity의 일반 갱신은 할인을 유지한다.
+
+이번 변경의 근거는 상태·리스너·Bundle 경로와 합성 assertion의 소스 대조다(2026-11-09). 새 후보의 `testPleosDebugUnitTest` XML, `assemblePleosDebug` 로그 및 전체 SHA에 결합된 source-sha.txt·입력 해시·unsigned APK 해시·패키지/ZIP 검사는 기존 GitHub Actions에서 별도 확인해야 한다. 기준 후보 성공으로 대신하지 않는다. Windows 에뮬레이터·실차·실제 SDK 콜백·Activity 재생성 화면 관측은 없다. 1차 필수 제안서·서명 동의서 확보와 최종 PT 작동 시연 완료를 뜻하지 않는다.

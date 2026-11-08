@@ -30,7 +30,6 @@ import static kr.juchakkaji.app.ParkingPlan.*;
 
 public final class MainActivity extends Activity {
     private static final String STAY_MINUTES = "demoProfile.stayMinutes";
-    private static final String PURCHASE_DISCOUNT = "demoProfile.purchaseDiscount";
 
     private final ExecutorService carReader = Executors.newSingleThreadExecutor();
     private ParkingNavigation navigation;
@@ -41,8 +40,7 @@ public final class MainActivity extends Activity {
     private final VehicleReadResult.Session vehicleSession = new VehicleReadResult.Session();
     private Runnable pendingVehicleRetry;
     private boolean readingVehicle;
-    private int stayMinutes = 120;
-    private boolean purchaseDiscount;
+    private VisitQuoteState quote = new VisitQuoteState(120);
 
     private Typeface font;
     private boolean night;
@@ -61,10 +59,7 @@ public final class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle saved) {
         super.onCreate(saved);
-        if (saved != null) {
-            stayMinutes = saved.getInt(STAY_MINUTES, stayMinutes);
-            purchaseDiscount = saved.getBoolean(PURCHASE_DISCOUNT, purchaseDiscount);
-        }
+        quote = new VisitQuoteState(saved == null ? 120 : saved.getInt(STAY_MINUTES, 120));
         font = getResources().getFont(R.font.asta_sans);
         night = (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
                 == Configuration.UI_MODE_NIGHT_YES;
@@ -172,8 +167,7 @@ public final class MainActivity extends Activity {
     @Override
     protected void onSaveInstanceState(Bundle state) {
         super.onSaveInstanceState(state);
-        state.putInt(STAY_MINUTES, stayMinutes);
-        state.putBoolean(PURCHASE_DISCOUNT, purchaseDiscount);
+        state.putInt(STAY_MINUTES, quote.stayMinutes());
     }
 
     private void refresh() {
@@ -181,9 +175,10 @@ public final class MainActivity extends Activity {
             detailsDialog.dismiss();
             detailsDialog = null;
         }
+        quote.syncVisit(navigation.visitVersion());
         navigation.invalidateSelections();
         destination.setText(navigation.visit() == null ? "목적지 없음" : navigation.visit().name());
-        List<Option> options = navigation.options(totalHeight.effectiveMm(vehicle), vehicle.drive(), stayMinutes, purchaseDiscount);
+        List<Option> options = navigation.options(totalHeight.effectiveMm(vehicle), vehicle.drive(), quote.stayMinutes(), quote.purchaseDiscount());
         RecommendationExplanation explanation = RecommendationExplanation.create(vehicle, totalHeight, readingVehicle, options);
         setStatus(readingVehicle ? "차량 정보 확인 중"
                 : options.isEmpty() ? "시설 정보 없음"
@@ -224,7 +219,7 @@ public final class MainActivity extends Activity {
         boolean compact = getResources().getConfiguration().screenWidthDp < 440;
         LinearLayout cost = compact ? row() : column();
         TextView amount = label(won(option.expectedWon()), 27, 700, ink);
-        TextView duration = label((stayMinutes / 60) + "시간 예상", 13, 500, muted);
+        TextView duration = label((quote.stayMinutes() / 60) + "시간 예상", 13, 500, muted);
         cost.addView(amount);
         cost.addView(duration);
         if (compact) {
@@ -331,23 +326,26 @@ public final class MainActivity extends Activity {
     }
 
     private void showQuoteSettings() {
+        quote.syncVisit(navigation.visitVersion());
+        VisitQuoteState.Token token = quote.open();
         LinearLayout body = column();
         body.setPadding(dp(24), dp(8), dp(24), 0);
         CheckBox twoHours = new CheckBox(this);
         twoHours.setText("2시간 기준 (해제 시 1시간)");
         twoHours.setTypeface(font);
-        twoHours.setChecked(stayMinutes == 120);
+        twoHours.setChecked(quote.stayMinutes() == 120);
         body.addView(twoHours);
         CheckBox discount = new CheckBox(this);
         discount.setText("구매 할인 조건 충족 가정");
         discount.setTypeface(font);
-        discount.setChecked(purchaseDiscount);
+        discount.setChecked(quote.purchaseDiscount());
         body.addView(discount);
-        show(dialog().setTitle("요금 조건").setView(body).setNegativeButton("취소", null)
+        show(dialog().setTitle("요금 조건 · " + navigation.visit().name())
+                .setMessage("현재 방문에만 적용 · 구매 할인 " + (quote.purchaseDiscount() ? "적용 가정" : "미적용"))
+                .setView(body).setNegativeButton("취소", null)
                 .setPositiveButton("적용", (d, which) -> {
-                    stayMinutes = twoHours.isChecked() ? 120 : 60;
-                    purchaseDiscount = discount.isChecked();
-                    refresh();
+                    quote.syncVisit(navigation.visitVersion());
+                    if (quote.apply(token, twoHours.isChecked() ? 120 : 60, discount.isChecked())) refresh();
                 }));
     }
 

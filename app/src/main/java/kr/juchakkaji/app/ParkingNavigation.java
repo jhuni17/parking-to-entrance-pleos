@@ -27,6 +27,7 @@ final class ParkingNavigation {
     private final Set<Long> sent = new HashSet<>();
     private NavigationPort.Destination visit;
     private long generation;
+    private long visitVersion;
     private long requestId;
     private Status status = Status.IDLE;
     private Receipt lastRequest;
@@ -39,12 +40,14 @@ final class ParkingNavigation {
     private void receive(NavigationPort.Destination destination) {
         if (destination.echoedRequestId() != null && sent.contains(destination.echoedRequestId())) return;
         visit = destination;
+        visitVersion++;
         generation++;
         status = Status.IDLE;
         lastRequest = null;
         changed.run();
     }
     NavigationPort.Destination visit() { return visit; }
+    long visitVersion() { return visitVersion; }
     Status status() { return status; }
     Receipt lastRequest() { return lastRequest; }
     void invalidateSelections() { generation++; }
