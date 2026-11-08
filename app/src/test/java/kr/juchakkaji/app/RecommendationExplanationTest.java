@@ -141,6 +141,48 @@ public final class RecommendationExplanationTest {
         assertEquals(ParkingNavigation.Status.STALE, nav.confirm(selection));
         assertEquals(1, fake.requests.size());
     }
+    @Test public void missingEntranceExplainsWhyUsableAlternativePrecedesFreeAttachedLot() {
+        ParkingPlan.Lot free = new ParkingPlan.Lot("입구 없는 무료 시설", "합성", true, 2500,
+                ParkingPlan.EvEntry.ALLOWED, new ParkingPlan.Tariff(60, 0, 0, ""),
+                null, "합성 테스트");
+        ParkingPlan.Lot paid = new ParkingPlan.Lot("입구 있는 유료 시설", "합성", false, 2500,
+                ParkingPlan.EvEntry.ALLOWED, new ParkingPlan.Tariff(60, 3000, 0, ""),
+                new ParkingPlan.Entrance("합성 입구", 37, 127), "합성 테스트");
+        ParkingNavigationTest.Fake fake = new ParkingNavigationTest.Fake();
+        ParkingNavigation nav = new ParkingNavigation(fake, () -> {});
+        fake.visit("합성 방문지", List.of(free, paid));
+        VehicleProfile vehicle = conventional(1850);
+        List<ParkingPlan.Option> options = nav.options(vehicle.heightMm(), vehicle.drive(), 120, true);
+        assertEquals(paid, options.get(0).lot());
+        assertTrue(options.get(0).requestAvailability().available());
+        assertEquals(Integer.valueOf(6000), options.get(0).expectedWon());
+        ParkingPlan.Option unavailable = attached(options);
+        assertEquals(ParkingPlan.Fit.MATCHES_RECORDED_RULES, unavailable.fit());
+        assertEquals(Integer.valueOf(0), unavailable.expectedWon());
+        assertFalse(unavailable.requestAvailability().available());
+        assertEquals("입구 정보 미확인", unavailable.requestAvailability().reason());
+        assertTrue(nav.select(unavailable).isEmpty());
+        assertEquals(1, ParkingPlan.requestableCount(options));
+        RecommendationExplanation result = RecommendationExplanation.create(vehicle, false, options);
+        assertEquals("입구 없는 무료 시설 · 입구 정보 미확인", result.headline());
+        assertFalse(result.headline().contains("조건 기준 충족"));
+        assertEquals(0, fake.requests.size());
+
+        // Shortening a fit reason must also preserve any missing-entrance suffix.
+        for (VehicleProfile restricted : List.of(conventional(2600),
+                hardware(1850, new Integer[]{FuelType.ELECTRIC}))) {
+            ParkingPlan.Lot missing = new ParkingPlan.Lot("입구 누락", "합성", true, 2500,
+                    ParkingPlan.EvEntry.UNKNOWN, null, null, "합성 테스트");
+            ParkingPlan.Option denied = ParkingPlan.compare(List.of(missing), restricted.heightMm(),
+                    restricted.drive(), 120, false).get(0);
+            String reason = restricted.drive() == VehicleProfile.DriveType.ELECTRIC
+                    ? "전기차 입차 조건 미확인" : "높이 초과";
+            assertEquals("입구 누락 · " + reason + " · 입구 정보 미확인",
+                    RecommendationExplanation.create(restricted, false,
+                            List.of(options.get(0), denied)).headline());
+        }
+        assertEquals(0, fake.requests.size());
+    }
     @Test public void explanationUsesSuppliedVerdictAndOrderWithoutRecalculation() {
         ParkingPlan.Option denied = new ParkingPlan.Option(SampleTrip.LOTS.get(0),
                 ParkingPlan.Fit.NEEDS_CHECK, "입구 운영 확인 필요", 12000, 12000);

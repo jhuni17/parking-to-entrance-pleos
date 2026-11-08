@@ -23,9 +23,9 @@ record RecommendationExplanation(String headline, String vehicleDetails, String 
             // Explain the first unavailable attached option, without reevaluating its rules.
             for (ParkingPlan.Option option : options) {
                 if (option.lot().attached() && !option.requestAvailability().available()) {
-                    String reason = option.reason();
-                    if (reason.equals("표기 높이 제한 초과")) reason = "높이 초과";
-                    if (reason.equals("전기차 입차 조건 확인 필요")) reason = "전기차 입차 조건 미확인";
+                    String reason = option.requestAvailability().reason()
+                            .replace("표기 높이 제한 초과", "높이 초과")
+                            .replace("전기차 입차 조건 확인 필요", "전기차 입차 조건 미확인");
                     headline = option.lot().name() + " · " + reason;
                     break;
                 }
