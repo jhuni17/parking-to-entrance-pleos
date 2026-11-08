@@ -11,6 +11,12 @@ record RecommendationExplanation(String headline, String vehicleDetails, String 
 
     static RecommendationExplanation create(VehicleProfile vehicle, VehicleHeight heightInput,
                                              boolean reading, List<ParkingPlan.Option> options) {
+        return create(vehicle, heightInput, reading, options, ParkingPlan.Priority.ATTACHED_FIRST);
+    }
+
+    static RecommendationExplanation create(VehicleProfile vehicle, VehicleHeight heightInput,
+                                             boolean reading, List<ParkingPlan.Option> options,
+                                             ParkingPlan.Priority priority) {
         if (reading) return new RecommendationExplanation("", "차량 정보 확인 중", "차량 정보 확인 중");
         String height = vehicle.heightMm() == null ? "확인 필요"
                 : vehicle.heightMm() + "mm · "
@@ -26,11 +32,18 @@ record RecommendationExplanation(String headline, String vehicleDetails, String 
                 ? "미입력" : heightInput.confirmedMm() + "mm · 사용자 직접 확인값")
                 + "\n판단 적용 높이 " + (heightInput.effectiveMm(vehicle) == null
                 ? "미확인" : heightInput.effectiveMm(vehicle) + "mm");
+        details += "\n추천 기준 " + (priority == ParkingPlan.Priority.FARE_FIRST ? "요금 우선" : "부설 우선");
         String headline = "";
         if (!options.isEmpty() && options.get(0).requestAvailability().available()
                 && !options.get(0).lot().attached()) {
+            if (priority == ParkingPlan.Priority.FARE_FIRST
+                    && options.stream().anyMatch(option -> option.lot().attached()
+                    && option.requestAvailability().available())) {
+                headline = "요금 우선 · 예상 요금이 낮은 대안";
+            }
             // Explain the first unavailable attached option, without reevaluating its rules.
             for (ParkingPlan.Option option : options) {
+                if (!headline.isEmpty()) break;
                 if (option.lot().attached() && !option.requestAvailability().available()) {
                     String reason = option.requestAvailability().reason()
                             .replace("표기 높이 제한 초과", "높이 초과")

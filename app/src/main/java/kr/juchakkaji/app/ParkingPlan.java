@@ -8,6 +8,8 @@ import java.util.Optional;
 import kr.juchakkaji.app.VehicleProfile.DriveType;
 
 final class ParkingPlan {
+    enum Priority { ATTACHED_FIRST, FARE_FIRST }
+
     enum Fit { MATCHES_RECORDED_RULES, NEEDS_CHECK, RESTRICTED }
     enum EvEntry { ALLOWED, RESTRICTED, UNKNOWN }
 
@@ -54,14 +56,28 @@ final class ParkingPlan {
 
     static List<Option> compare(List<Lot> lots, Integer vehicleHeightMm, DriveType drive,
                                 int stayMinutes, boolean qualifiesForPurchaseDiscount) {
+        return compare(lots, vehicleHeightMm, drive, stayMinutes, qualifiesForPurchaseDiscount, Priority.ATTACHED_FIRST);
+    }
+
+    static List<Option> compare(List<Lot> lots, Integer vehicleHeightMm, DriveType drive,
+                                int stayMinutes, boolean qualifiesForPurchaseDiscount, Priority priority) {
         List<Option> options = new ArrayList<>();
         for (Lot lot : lots) {
             options.add(evaluate(lot, vehicleHeightMm, drive, stayMinutes, qualifiesForPurchaseDiscount));
         }
-        options.sort(Comparator.comparing((Option option) -> !option.requestAvailability().available())
-                .thenComparing(Option::fit)
+        Comparator<Option> existing = Comparator.comparing(Option::fit)
                 .thenComparing(option -> !option.lot().attached())
-                .thenComparing(Option::expectedWon, Comparator.nullsLast(Comparator.naturalOrder())));
+                .thenComparing(Option::expectedWon, Comparator.nullsLast(Comparator.naturalOrder()));
+        Comparator<Option> fare = Comparator.comparing(Option::expectedWon,
+                        Comparator.nullsLast(Comparator.naturalOrder()))
+                .thenComparing(option -> !option.lot().attached());
+        options.sort((left, right) -> {
+            boolean leftAvailable = left.requestAvailability().available();
+            boolean rightAvailable = right.requestAvailability().available();
+            if (leftAvailable != rightAvailable) return leftAvailable ? -1 : 1;
+            // Unavailable candidates retain their original verdict and ordering policy.
+            return (leftAvailable && priority == Priority.FARE_FIRST ? fare : existing).compare(left, right);
+        });
         return options;
     }
 

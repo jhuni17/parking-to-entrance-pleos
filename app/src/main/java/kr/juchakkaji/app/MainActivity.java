@@ -40,6 +40,7 @@ public final class MainActivity extends Activity {
     private final VehicleReadResult.Session vehicleSession = new VehicleReadResult.Session();
     private Runnable pendingVehicleRetry;
     private boolean readingVehicle;
+    private Priority priority = Priority.ATTACHED_FIRST;
     private VisitQuoteState quote = new VisitQuoteState(120);
 
     private Typeface font;
@@ -178,8 +179,8 @@ public final class MainActivity extends Activity {
         quote.syncVisit(navigation.visitVersion());
         navigation.invalidateSelections();
         destination.setText(navigation.visit() == null ? "목적지 없음" : navigation.visit().name());
-        List<Option> options = navigation.options(totalHeight.effectiveMm(vehicle), vehicle.drive(), quote.stayMinutes(), quote.purchaseDiscount());
-        RecommendationExplanation explanation = RecommendationExplanation.create(vehicle, totalHeight, readingVehicle, options);
+        List<Option> options = navigation.options(totalHeight.effectiveMm(vehicle), vehicle.drive(), quote.stayMinutes(), quote.purchaseDiscount(), priority);
+        RecommendationExplanation explanation = RecommendationExplanation.create(vehicle, totalHeight, readingVehicle, options, priority);
         setStatus(readingVehicle ? "차량 정보 확인 중"
                 : options.isEmpty() ? "시설 정보 없음"
                 : totalHeight.effectiveMm(vehicle) == null ? "차량 높이 확인 필요"
@@ -285,6 +286,14 @@ public final class MainActivity extends Activity {
         LinearLayout body = column();
         body.setPadding(dp(24), dp(8), dp(24), 0);
         body.addView(label(text, 16, 400, ink));
+        body.addView(action("추천 기준", false, () -> show(dialog().setTitle("추천 기준")
+                .setSingleChoiceItems(new String[]{"부설 우선", "요금 우선"},
+                        priority == Priority.ATTACHED_FIRST ? 0 : 1, (d, which) -> {
+                            priority = which == 0 ? Priority.ATTACHED_FIRST : Priority.FARE_FIRST;
+                            d.dismiss();
+                            refresh();
+                        })
+                .setNegativeButton("취소", null))));
         body.addView(action("총높이 보완", false, this::showTotalHeight));
         ScrollView scroll = new ScrollView(this);
         scroll.addView(body);

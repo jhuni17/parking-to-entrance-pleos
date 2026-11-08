@@ -52,7 +52,11 @@ final class ParkingNavigation {
     Receipt lastRequest() { return lastRequest; }
     void invalidateSelections() { generation++; }
     List<ParkingPlan.Option> options(Integer height, VehicleProfile.DriveType drive, int minutes, boolean discount) {
-        return ParkingPlan.compare(visit == null ? List.of() : visit.lots(), height, drive, minutes, discount);
+        return options(height, drive, minutes, discount, ParkingPlan.Priority.ATTACHED_FIRST);
+    }
+    List<ParkingPlan.Option> options(Integer height, VehicleProfile.DriveType drive, int minutes,
+                                    boolean discount, ParkingPlan.Priority priority) {
+        return ParkingPlan.compare(visit == null ? List.of() : visit.lots(), height, drive, minutes, discount, priority);
     }
     Optional<Selection> select(ParkingPlan.Option option) {
         if (visit == null || !visit.lots().contains(option.lot())) return Optional.empty();
