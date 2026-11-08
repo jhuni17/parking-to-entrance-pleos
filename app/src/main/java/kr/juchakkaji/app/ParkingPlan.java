@@ -98,9 +98,28 @@ final class ParkingPlan {
 
     record RequestAvailability(boolean available, String reason) {}
 
-    record Option(Lot lot, Fit fit, String reason, Integer baseWon, Integer expectedWon, boolean excluded) {
+    record FitReason(Fit classification, String text) {}
+
+    record Option(Lot lot, Fit fit, String reason, Integer baseWon, Integer expectedWon,
+                  boolean excluded, List<FitReason> reasons) {
+        Option {
+            reasons = List.copyOf(reasons);
+        }
+        Option(Lot lot, Fit fit, String reason, Integer baseWon, Integer expectedWon, boolean excluded) {
+            this(lot, fit, reason, baseWon, expectedWon, excluded,
+                    fit == Fit.MATCHES_RECORDED_RULES ? List.of() : List.of(new FitReason(fit, reason)));
+        }
         Option(Lot lot, Fit fit, String reason, Integer baseWon, Integer expectedWon) {
             this(lot, fit, reason, baseWon, expectedWon, false);
+        }
+        String vehicleFitDetails() {
+            StringBuilder text = new StringBuilder("차량 판정: ").append(fit);
+            if (reasons.isEmpty()) text.append(" · ").append(reason);
+            for (FitReason item : reasons) {
+                text.append("\n").append(item.classification() == Fit.RESTRICTED ? "제한: " : "확인 필요: ")
+                        .append(item.text());
+            }
+            return text.toString();
         }
         RequestAvailability requestAvailability() {
             if (excluded) return new RequestAvailability(false, "이번 방문 제외");
@@ -154,7 +173,7 @@ final class ParkingPlan {
         for (Lot lot : lots) {
             Option evaluated = evaluate(lot, vehicleHeightMm, vehicleWidthMm, drive, stayMinutes, qualifiesForPurchaseDiscount);
             options.add(new Option(lot, evaluated.fit(), evaluated.reason(), evaluated.baseWon(),
-                    evaluated.expectedWon(), excluded.contains(lot)));
+                    evaluated.expectedWon(), excluded.contains(lot), evaluated.reasons()));
         }
         Comparator<Option> existing = Comparator.comparing(Option::fit)
                 .thenComparing(option -> !option.lot().attached())
@@ -177,37 +196,43 @@ final class ParkingPlan {
         Tariff tariff = lot.tariff();
         Integer base = tariff == null ? null : tariff.quote(stayMinutes, false);
         Integer expected = tariff == null ? null : tariff.quote(stayMinutes, qualifiesForPurchaseDiscount);
+        List<FitReason> reasons = new ArrayList<>();
         Integer limitMm = lot.heightLimitMm();
         if (heightMm != null && limitMm != null && heightMm > limitMm) {
-            return new Option(lot, Fit.RESTRICTED, "표기 높이 제한 초과", base, expected);
+            reasons.add(new FitReason(Fit.RESTRICTED, "표기 높이 제한 초과"));
         }
         if (drive == DriveType.ELECTRIC && lot.evEntry() == EvEntry.RESTRICTED) {
-            return new Option(lot, Fit.RESTRICTED, "등록된 전기차 입차 제한", base, expected);
+            reasons.add(new FitReason(Fit.RESTRICTED, "등록된 전기차 입차 제한"));
         }
         WidthCondition width = lot.widthCondition();
         if (width != null && width.maximumMm() != null && width.maximumMm() > 0
                 && widthMm != null && widthMm > width.maximumMm()) {
-            return new Option(lot, Fit.RESTRICTED, "최대 허용 차폭 초과", base, expected);
+            reasons.add(new FitReason(Fit.RESTRICTED, "최대 허용 차폭 초과"));
         }
         if (width != null && (width.maximumMm() == null || width.maximumMm() <= 0)) {
-            return new Option(lot, Fit.NEEDS_CHECK, "시설 최대 허용 차폭 확인 필요", base, expected);
+            reasons.add(new FitReason(Fit.NEEDS_CHECK, "시설 최대 허용 차폭 확인 필요"));
         }
         if (width != null && (widthMm == null || widthMm <= 0)) {
-            return new Option(lot, Fit.NEEDS_CHECK, "차량 너비 확인 필요", base, expected);
+            reasons.add(new FitReason(Fit.NEEDS_CHECK, "차량 너비 확인 필요"));
         }
         if (heightMm == null) {
-            return new Option(lot, Fit.NEEDS_CHECK, "차량 높이 확인 필요", base, expected);
-        }
-        if (limitMm == null || heightMm.equals(limitMm)) {
-            return new Option(lot, Fit.NEEDS_CHECK, "높이 여유 또는 제한 정보 확인 필요", base, expected);
+            reasons.add(new FitReason(Fit.NEEDS_CHECK, "차량 높이 확인 필요"));
+        } else if (limitMm == null || heightMm.equals(limitMm)) {
+            reasons.add(new FitReason(Fit.NEEDS_CHECK, "높이 여유 또는 제한 정보 확인 필요"));
         }
         if (drive == DriveType.NEEDS_CHECK && lot.evEntry() != EvEntry.ALLOWED) {
-            return new Option(lot, Fit.NEEDS_CHECK, "차량 연료 유형 확인 필요", base, expected);
+            reasons.add(new FitReason(Fit.NEEDS_CHECK, "차량 연료 유형 확인 필요"));
         }
         if (drive == DriveType.ELECTRIC && lot.evEntry() == EvEntry.UNKNOWN) {
-            return new Option(lot, Fit.NEEDS_CHECK, "전기차 입차 조건 확인 필요", base, expected);
+            reasons.add(new FitReason(Fit.NEEDS_CHECK, "전기차 입차 조건 확인 필요"));
         }
-        return new Option(lot, Fit.MATCHES_RECORDED_RULES, "등록된 입차 조건 기준 충족", base, expected);
+        // The original priority is restricted height, EV, width, then uncertainty width,
+        // height and fuel. Collect every condition before choosing that representative.
+        FitReason primary = reasons.stream().filter(r -> r.classification() == Fit.RESTRICTED)
+                .findFirst().orElse(reasons.isEmpty() ? null : reasons.get(0));
+        return new Option(lot, primary == null ? Fit.MATCHES_RECORDED_RULES : primary.classification(),
+                primary == null ? "등록된 입차 조건 기준 충족" : primary.text(),
+                base, expected, false, reasons);
     }
 
     static Optional<RouteRequest> routeRequest(String visit, Option option) {

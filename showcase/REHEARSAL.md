@@ -489,3 +489,25 @@ MainActivity는 변경하지 않는다. 기존 상세의 null 높이 표시는 �
 로컬 PATH에 Java·javac·Gradle이 없고 Android SDK 설정도 확인되지 않아 JVM 테스트·APK 빌드는 미실행이다. 소스 assertion 대조와 작업 트리 공백 검사는 실행 성공 증거가 아니다. 도구 설치·커밋·푸시·네트워크·자격 증명·CI 변경은 수행하지 않는다. Oracle에서 새 후보 커밋을 만든 뒤 기존 GitHub Actions의 `testPleosDebugUnitTest`·`assemblePleosDebug` 성공과 FacilityHeightTest·ParkingPlanTest·VehicleWidthTest·ParkingNavigationTest를 포함한 전체 XML의 실패·오류·건너뜀 각각 0을 확인해야 한다. 새 전체 SHA와 `source-sha.txt`·`pleos-build-<full SHA>` 일치, Gradle 로그·입력 해시·unsigned APK, README의 두 `sha256sum -c` 및 APK 패키지·ZIP·unsigned 검사는 대기다. 기준 `6103153261e1a9c5c746a45f5c4abe3245e62a22` 대비 새 HEAD 전체 diff·`git diff --check`·지정 네 editPaths 제한도 새 커밋에서 확인해야 한다. 기준 후보 성공으로 대체하지 않는다.
 
 합성 검증 설계·unsigned CI·실제 런타임·제출 완료를 구분한다. Windows 에뮬레이터 설치·화면·실제 SDK 콜백·차량 신호·실차·Gleo 발화·음향 증거는 미확보다. 1차 필수 제안서·서명 동의서, 선택 프로토타입·적격 GitHub/APK, 최종 PT 필수 작동 앱 시연은 별도 준비·확인 대상이다.
+
+## 복수 차량 조건 상세 — 현행 소스 대조 (2026-11-09)
+
+`CompoundFitTest`의 합성 `fromHardware` 입력을 동일 방문·SampleTrip 목록·120분·구매 할인 가정에 적용하는 assertion 기대값이다. 실제 SDK나 Windows 화면 관측, 원본 차량값 변경 UI가 아니다. 부설 우선·요금 우선 모두 다음 전환을 기대한다.
+
+| 합성 원본 입력 | 코엑스 상세의 차량 사유 / Fit | 추천 / 요청 가능 후보 |
+| --- | --- | --- |
+| 2250mm·ELECTRIC | 제한: 표기 높이 제한 초과 + 확인 필요: 전기차 입차 조건 확인 필요 / RESTRICTED | 대안 A 6,000원 / 1곳 |
+| 1850mm·ELECTRIC | 확인 필요: 전기차 입차 조건 확인 필요 / NEEDS_CHECK | 대안 A 6,000원 / 1곳 |
+| 1850mm·NON_ELECTRIC | 차단 사유 없음 / MATCHES_RECORDED_RULES | 코엑스 0원 / 2곳 |
+
+높이 조건 해소만으로 전기차 정책 미확인이 사라지지 않는다. 코엑스 기본 12,000원·예상 0원은 유지한다. 첫 단계 카드 이유는 ‘코엑스 지하주차장 · 높이 초과’ 한 줄이다. 합성 시설 높이 2200mm·허용 차폭 1980mm에 차량 2250mm·1990mm·ELECTRIC을 적용하면 전기차 RESTRICTED에서 세 제한, UNKNOWN에서 높이·차폭 제한 + 전기차 확인 필요가 남는다. 등록 차폭 2000mm·높이 2200mm·UNKNOWN 시설에 차량값이 모두 누락되면 너비·높이·연료 세 확인 사유다. 차폭 조건 미등록만으로 새 차폭 차단 사유를 만들지 않는다.
+
+향후 리허설 조작: 후보의 ‘상세’를 눌러 ‘차량 판정’ 아래 ‘제한’·‘확인 필요’를 함께 읽는다(`showDetails`의 `Option.vehicleFitDetails()`). 입구 정보·좌표 오류·사용자 제외는 별도 항목이며 기존 요청 차단을 유지한다. 첫 화면에 차량값·출처·전체 사유 목록은 추가하지 않는다. 화면 조작으로 원본 차량값을 2250→1850mm 또는 ELECTRIC→NON_ELECTRIC으로 바꿀 수 있다는 뜻은 아니다. 합성 전환은 테스트에서 수행한다.
+
+계산·공통 상세 문자열 생성·갱신·선택까지 fake 요청 0건을 검사한다. 갱신 전 Selection은 STALE이다. 1850mm·ELECTRIC의 새 대안 A 확인 모델에서 원래 방문지·120분·6,000원을 읽고 명시적으로 확인할 때만 37.51400, 127.06100으로 1건 요청한다. 중복 확인은 추가 요청하지 않으며 입구 되울림에도 원래 방문지를 유지한다. 실패 결과 회귀는 기존 ParkingNavigationTest·RequestCompletionTest와 함께 CI XML로 확인해야 한다.
+
+외부 사실은 SampleTrip의 기존 공식 출처·2026-11-08 확인일을 유지하며 이번에 재확인하지 않았다. 차량 전환·차폭·대안·좌표는 합성/시연값이다. 로컬 Java·javac·Gradle과 Android SDK 환경 설정이 없어 테스트·APK 빌드는 미실행이며 도구 설치·커밋·푸시·네트워크·자격 증명·CI 변경은 하지 않는다. 소스 assertion 대조·공백 검사는 실행 통과 증거가 아니다.
+
+Oracle 새 후보의 기존 Actions 검증은 대기다. 새 전체 SHA와 `source-sha.txt`·`pleos-build-<full SHA>` 일치, `testPleosDebugUnitTest`·`assemblePleosDebug` 성공, CompoundFitTest·VehicleWidthTest·EntranceCoordinateTest·VisitExclusionTest·ParkingNavigationTest·RequestCompletionTest 포함 전체 XML 실패·오류·건너뜀 각 0, Gradle 로그·입력 해시·unsigned APK를 확인한다. README의 두 `sha256sum -c` 검사 및 APK 패키지·ZIP·unsigned 검사, 기준 `d4d3538ea1732ad93dcc8b89957dec607ab43c47` 대비 새 HEAD 전체 diff·공백 검사·다섯 editPaths 제한도 확인해야 한다. 기준 후보 성공으로 대체하지 않는다.
+
+Windows 설치·화면·실제 SDK 콜백·차량 신호·실차·Gleo 발화·음향 증거는 없다. 합성 검증 설계·unsigned CI·실제 런타임을 구분한다. 1차 필수 제안서·서명 동의서, 선택 프로토타입·적격 GitHub/APK, 최종 PT 필수 작동 앱 시연은 별도 준비 대상이며 제출·시연 완료를 주장하지 않는다.

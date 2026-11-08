@@ -303,7 +303,7 @@ public final class MainActivity extends Activity {
                 + "\n" + explanation.vehicleDetails()
                 + "\n" + lot.widthDetails()
                 + (vehicleState.vehicle().model().isEmpty() ? "" : "\n차량 " + vehicleState.vehicle().model())
-                + "\n차량 판정: " + option.fit() + " · " + option.reason()
+                + "\n" + option.vehicleFitDetails()
                 + "\n사용자 선택: " + (option.excluded() ? "이번 방문 제외" : "제외 없음")
                 + "\n" + option.requestAvailability().reason() + "\n\n" + lot.provenance();
         if (lot.tariff() != null) {
