@@ -15,11 +15,11 @@
 
 코엑스 할인 설명은 기존 Tariff.discountText의 구매 조건 충족 가정이며 실제 구매 검증이 아니다. 요금 누락·잘못된 요금식은 ‘요금 미확인’, 유효한 단가 0은 ‘0원’이다. 상세 모델은 전달된 Option.baseWon·expectedWon을 소비하며 요금·적합성을 재계산하거나 내비를 호출하지 않는다. 추천 카드와 후보 행은 같은 MainActivity.showDetails를 사용한다. 첫 화면에는 새 비용 내역·차량값·출처를 추가하지 않고 대안 이유의 setSingleLine(true)를 유지한다.
 
-상세 생성·조건 변경·새 선택까지 fake 요청은 0건이다. 높이 갱신 전 Selection은 STALE이며 새 대안 A를 명시적으로 확인할 때만 원래 방문지와 시연 좌표 37.51400, 127.06100으로 1건 요청한다. 중복 확인은 추가 요청하지 않고 입구 되울림에도 원래 방문지를 유지한다. 기존 실패·예외·SIMULATED 구분 테스트는 유지한다. 이 내용은 합성 assertion과 소스 연결 대조이며 테스트 실행 XML·실제 SDK 콜백 관측을 주장하지 않는다.
+상세 생성·조건 변경·새 선택까지 fake 요청은 0건이다. 높이 갱신 전 Selection은 STALE이며 새 대안 A를 명시적으로 확인할 때만 원래 방문지와 시연 좌표 37.51400, 127.06100으로 1건 요청한다. 중복 확인은 추가 요청하지 않고 입구 되울림에도 원래 방문지를 유지한다. 기존 실패·예외·SIMULATED 구분 테스트는 유지한다. 수치·요청 동작은 합성 assertion이며 기준 후보의 보고된 JVM 실행 결과를 근거로 한다. 이번 작업은 소스 연결을 대조했으며 원본 XML 직접 검증·실제 SDK 콜백·화면 관측을 주장하지 않는다.
 
-외부 공개값·출처·확인일은 SampleTrip의 기존 공식 안내 및 2026-11-08 기록을 유지하며 외부 재확인은 하지 않았다. 대안 A·좌표는 시연값이다. 로컬 PATH의 Java·javac·Gradle 및 Android SDK 설정을 확보하지 못해 JVM 테스트·APK 빌드는 미실행이다. 설치·네트워크·자격 증명·커밋·푸시·CI·서명·차량 제한 변경은 수행하지 않는다.
+외부 공개값·출처·확인일은 SampleTrip의 기존 공식 안내 및 2026-11-08 기록을 유지하며 외부 재확인은 하지 않았다. 대안 A·좌표는 시연값이다. 이 기능 작성 당시 로컬 테스트·빌드는 미실행이었으나, 현행 기준 후보의 보고된 JVM 실행·unsigned 빌드 결과는 [후보별 검증 상태](#후보별-검증-상태)를 따른다.
 
-Oracle의 새 후보 커밋을 기존 GitHub Actions에서 검증해야 한다. 기준 11c611ffe7efa540ed00e2ab03226158b275cf9d의 성공으로 대체하지 않는다. 새 전체 SHA와 source-sha.txt·pleos-build-<full SHA> 일치, testPleosDebugUnitTest·assemblePleosDebug 성공, FareDetailsTest·TariffFallbackTest·DiscountRuleTest 및 실패·예외·SIMULATED 테스트 포함 전체 XML 실패·오류·건너뜀 각각 0은 대기다. Gradle 로그·입력 해시·unsigned APK, README의 두 sha256sum 검사, APK 패키지·ZIP·unsigned 검사도 대기다. 같은 기준 대비 새 HEAD의 전체 diff·git diff --check 및 지정 다섯 editPaths만 변경됐는지 확인해야 한다. 작업 트리 검사와 신규 assertion은 이 CI 증거를 대신하지 않는다.
+`FareDetailsTest.heightRefreshKeepsCostsButBlocksOldSelectionUntilExplicitAlternativeConfirmation`의 실행 근거는 기준 후보 `60156b86049cc5a2f08cabf82331ca87dc6dc8be`에 대한 제공 acceptedReview의 JVM 결과다(직접 재실행 아님). MainActivity의 `showDetails`는 FareDetails를 표시하고 `refresh`는 상세를 닫고 선택을 만료시키며 `confirmPreview`의 명시적 확인만 요청한다. SampleTrip.SimulatedNavigation은 SDK 호출 없이 SIMULATED를 반환한다. 따라서 합성 입력의 계산·선택·fake 요청 검증, UI 연결의 소스 대조, 향후 Windows 화면 리허설, 실제 Pleos 런타임 미관측을 구분한다. 문서 수정 이후 후보의 CI 요구는 [후보별 검증 상태](#후보별-검증-상태)를 따른다.
 
 Windows 에뮬레이터 설치·화면·실제 Pleos SDK 콜백·차량 신호·실차·Gleo 발화·음향 증거는 미확보다. 합성 검증 설계·unsigned CI·실제 런타임을 구분하며, 1차 필수 제안서·서명 동의서, 선택 프로토타입·적격 GitHub/APK, 최종 PT 필수 작동 앱 시연은 별도 준비 대상이다.
 
@@ -31,7 +31,7 @@ Windows 에뮬레이터 설치·화면·실제 Pleos SDK 콜백·차량 신호·
 
 상세의 공유 `VehicleReadExplanation`은 첫 DISCONNECTED 뒤에는 진행 중을 유지하고, 두 번째 DISCONNECTED는 ‘차량 서비스 미연결’, UNAVAILABLE는 ‘차량 정보 읽기 불가’, CONNECTED는 ‘차량 조회 응답 수신’, EXPIRE는 ‘차량 조회 대기 만료’로 구분한다. 응답 수신은 모든 속성 확보나 입차 허용을 뜻하지 않으며 영구 미지원·권한 부족을 단정하지 않는다. 새 조회가 이전 종료 이유를 교체한다. 화면 종료 중 진행 조회는 ‘진행 안 함’으로 바꾸며 실패나 만료를 만들어내지 않는다. 차량값·출처와 시설 제한 사유는 별도 항목이다. 적용 높이가 미확인이면 직접 확인한 총높이가 있을 때만 ‘총높이 보완’을 안내하고, 확인값이 없으면 요청을 보류한다. 보완값을 조회 성공으로 표시하지 않는다.
 
-`VehicleReadExplanationTest`의 신규 합성 assertion(실행 미확인)은 기존 가짜 시계·Screen·속성 source부터 실제 상태·후보 계산·확인 모델을 연결한다. 2999ms 진행 중 / 3000ms 무응답 또는 마감 도착 결과 만료, 중복 만료·이전 결과·타이머 무시, stop→start, 500ms 재시도 최대 한 번을 검사한다. 아래는 시연/합성값이며 실제 화면 관측이 아니다.
+`VehicleReadExplanationTest`의 합성 assertion(작성 당시 실행 미확인; 현행 실행 근거는 후보별 검증 상태 참조)은 기존 가짜 시계·Screen·속성 source부터 실제 상태·후보 계산·확인 모델을 연결한다. 2999ms 진행 중 / 3000ms 무응답 또는 마감 도착 결과 만료, 중복 만료·이전 결과·타이머 무시, stop→start, 500ms 재시도 최대 한 번을 검사한다. 아래는 시연/합성값이며 실제 화면 관측이 아니다.
 
 | 신규 종료·복구 사례 | assertion 기대값 |
 | --- | --- |
@@ -56,7 +56,7 @@ Windows 에뮬레이터 설치·화면·실제 Pleos SDK 콜백·차량 신호·
 
 사용자 재조회는 **종료 후 명시적으로 시작하는 새 조회**다. 기존 자동 재시도는 각 조회의 첫 미연결 결과에만 500ms 뒤 최대 한 번이며 시작부터 3000ms 마감을 연장하지 않는다. 진행 중 반복 시작은 세대·마감·읽기 예약을 늘리지 않는다. 만료는 UNKNOWN으로 종료하며 이전 세대 결과·재시도·만료 및 화면 종료 후 콜백은 무시한다. 단일 실행기와 AndroidVehicleInfo.read를 유지한다. 이 정책은 막힌 API 호출의 강제 종료, 실행기 해제 또는 실제 서비스 회복을 보장하지 않는다.
 
-로컬 PATH에서 Java·javac·Gradle을 찾지 못했고 Android SDK도 확인되지 않아 `testPleosDebugUnitTest`·`assemblePleosDebug`는 미실행이다. 소스/assertion 대조와 작업 트리 `git diff --check`는 실행 테스트 증거가 아니다. 커밋·푸시·네트워크·자격 증명·CI 변경·도구 설치는 하지 않는다. Oracle의 새 후보 커밋 후 기존 GitHub Actions에서 **새 전체 SHA**의 source-sha.txt 및 pleos-build-<full SHA> 일치, VehicleReadExplanationTest 포함 기존·신규 전체 XML의 실패·오류·건너뜀 모두 0, Gradle 로그·입력 해시·unsigned APK를 확인해야 한다. README의 `sha256sum -c apk-sha256.txt` 및 동일 SHA 체크아웃의 `sha256sum -c /path/to/input-sha256.txt`, 기존 패키지·ZIP·unsigned 검사도 대기다. 기준 `5bb17b10e0866087e09c57a270f31561d4e3806d` 대비 새 HEAD 전체 diff·공백 검사·지정 여섯 editPaths 제한은 새 커밋에서 확인해야 하며 기준 후보 성공으로 대체하지 않는다.
+**작성 당시 기록(아래 대기·미실행·새 커밋 없음 및 경로 제한은 해당 기능 작성 시점에 한정).** 현행 기준 후보의 보고된 실행 결과와 이후 변경의 검증 요구는 [후보별 검증 상태](#후보별-검증-상태)를 따른다. 로컬 PATH에서 Java·javac·Gradle을 찾지 못했고 Android SDK도 확인되지 않아 `testPleosDebugUnitTest`·`assemblePleosDebug`는 미실행이다. 소스/assertion 대조와 작업 트리 `git diff --check`는 실행 테스트 증거가 아니다. 커밋·푸시·네트워크·자격 증명·CI 변경·도구 설치는 하지 않는다. Oracle의 새 후보 커밋 후 기존 GitHub Actions에서 **새 전체 SHA**의 source-sha.txt 및 pleos-build-<full SHA> 일치, VehicleReadExplanationTest 포함 기존·신규 전체 XML의 실패·오류·건너뜀 모두 0, Gradle 로그·입력 해시·unsigned APK를 확인해야 한다. README의 `sha256sum -c apk-sha256.txt` 및 동일 SHA 체크아웃의 `sha256sum -c /path/to/input-sha256.txt`, 기존 패키지·ZIP·unsigned 검사도 대기다. 기준 `5bb17b10e0866087e09c57a270f31561d4e3806d` 대비 새 HEAD 전체 diff·공백 검사·지정 여섯 editPaths 제한은 새 커밋에서 확인해야 하며 기준 후보 성공으로 대체하지 않는다.
 
 Windows 설치·화면·실제 SDK 콜백·차량 신호·실차·음성·음향 증거는 없다. 합성 검증 설계·unsigned CI·실제 런타임·제출 완료를 구분한다. 1차 필수 제안서·서명 동의서, 선택 프로토타입·적격 GitHub/APK, 최종 PT 필수 작동 앱 시연은 별도 준비 대상이며 이번 구현은 제출 완료를 뜻하지 않는다.
 
@@ -132,21 +132,30 @@ Windows 설치·화면·실제 SDK 콜백·차량 신호·실차·음성·음향
 
 ## 후보별 검증 상태
 
-근거 수령일: **2026-11-08**. 아래 CI 수치는 사용자 요청에 전달된 검토 보고(acceptedReview)의 결과를 인용한 것이다. 별도 보고 원문·Actions 로그·아티팩트를 이번 작업에서 직접 열거나 재검증하지 않았다. 소스 확인과 제공 보고 인용은 실제 런타임 관측과 구분한다.
+현행 기준 후보의 근거 수령일: **2026-11-09**. 최초 후보의 보고 수령일은 2026-11-08이다. 아래 CI 수치는 사용자 요청에 전달된 검토 보고(acceptedReview)의 결과를 인용한 것이다. 별도 보고 원문·Actions 로그·아티팩트를 이번 작업에서 직접 열거나 재검증하지 않았다. 소스 확인과 제공 보고 인용은 실제 런타임 관측과 구분한다.
 
 | 후보 SHA | Actions 실행 번호 | 보고된 작업 결과 | 보고된 테스트 집계 | 보고된 unsigned APK SHA-256 |
 | --- | --- | --- | --- | --- |
-| `1b3e2716204f023c2adabdec7d4839be3503b074` | `42481652866` | `testPleosDebugUnitTest` 성공 · `assemblePleosDebug` 성공 | 테스트 13건 · 실패 0건 · 오류 0건 · 건너뜀 0건 | `f4106e97cb738915a01736bd93fb00eb32dd66642e5b1a448e1ed81d034a3e0f` |
+| `60156b86049cc5a2f08cabf82331ca87dc6dc8be` (현행 기준 후보) | `42514619983` | `testPleosDebugUnitTest` 성공 · `assemblePleosDebug` 성공 | XML 25개 · 테스트 139건 · 실패 0건 · 오류 0건 · 건너뜀 0건 | 미제공 (보고에 APK 해시 없음) |
+| `1b3e2716204f023c2adabdec7d4839be3503b074` (과거 최초 후보) | `42481652866` | `testPleosDebugUnitTest` 성공 · `assemblePleosDebug` 성공 | 테스트 13건 · 실패 0건 · 오류 0건 · 건너뜀 0건 | `f4106e97cb738915a01736bd93fb00eb32dd66642e5b1a448e1ed81d034a3e0f` |
 
-이 기록은 위 후보에 한정한다. 문서 정정을 포함한 이후 변경 HEAD는 별도 검증 대상이며, 후보 CI 성공으로 그 HEAD의 성공을 보증하지 않는다. 2026-11-08 당시 로컬 시도에서 Gradle·Java 도구를 찾지 못한 기록은 과거 실행 환경의 기록이며 후보 CI 결과를 부정하지 않는다.
+각 행의 결과와 해시는 해당 후보에만 귀속된다. 최초 후보의 13건 결과·APK 해시는 현행 계약의 실행 근거가 아니다. 문서 정정을 포함한 이후 변경 HEAD는 별도 검증 대상이며, 후보 CI 성공으로 그 HEAD의 성공을 보증하지 않는다. 2026-11-08 당시 로컬 시도에서 Gradle·Java 도구를 찾지 못한 기록은 과거 실행 환경의 기록이며 후보 CI 결과를 부정하지 않는다.
 
-| 검증 층위 | 근거와 상태 (2026-11-08 수령·소스 확인) | 제출 단계에 쓰는 범위 |
+| 검증 층위 | 근거와 상태 (2026-11-09 보고 수령·소스 대조) | 제출 단계에 쓰는 범위 |
 | --- | --- | --- |
 | 합성 목적지·등록 차량값에 따른 판단 | `SampleTrip.SimulatedNavigation`이 코엑스 시연 목적지를 전달한다. 현재 차량은 AAOS 조회 대상이며, JVM 검사는 합성 차량 입력을 사용한다. 방문 조건은 화면의 요금 가정이고 시설 공개값과 가상 대안을 혼합한다. 소스상 판단 구현을 확인했으며 실제 차량 신호 관측은 아니다. | 제안서에 구현 범위와 시연값을 설명할 수 있다. 사용자 결과의 실측 증거는 아니다. |
-| fake 내비 계약 | `ParkingNavigationTest`가 최신 목적지, 확인 전 0건·확인 후 1건, 실패 구분, 입구 되울림 시 원래 방문지 유지를 검사한다. 실행 통과 근거는 위 후보의 보고된 JVM 테스트 결과다. | 프로토타입 계약 설명에 사용한다. 실제 SDK 콜백 증거는 아니다. |
-| unsigned debug CI | 위 후보의 테스트·빌드 성공과 APK 해시를 제공 보고에서 인용했다. 이번 작업의 직접 실행·해시 검증은 없다. | 선택 GitHub/APK 자료의 빌드 근거이며 제출 적격성·설치 가능성을 확정하지 않는다. |
+| fake 내비 계약 | `ParkingNavigationTest`가 최신 목적지, 확인 전 0건·확인 후 1건, 실패 구분, 입구 되울림 시 원래 방문지 유지를 검사한다. 현행 실행 통과 근거는 기준 후보 `60156b86049cc5a2f08cabf82331ca87dc6dc8be`의 보고된 JVM 테스트 139건 결과다. | 프로토타입 계약 설명에 사용한다. 실제 SDK 콜백 증거는 아니다. |
+| unsigned debug CI | 현행 기준 후보의 테스트·빌드 성공을 제공 보고에서 인용했다. 해당 후보 APK 해시는 미제공이며 과거 후보 해시를 대신 쓰지 않는다. 이번 작업의 직접 실행·해시 검증은 없다. | 선택 GitHub/APK 자료의 빌드 근거이며 제출 적격성·설치 가능성을 확정하지 않는다. |
 | 실제 Pleos 런타임·사용자 결과 | 실제 목적지 신호 수신 → 재검색 없이 주차장 선택 → 실제 경로 요청 결과의 관측은 미확보다. 시연 어댑터는 `SIMULATED`를 반환하며 SDK를 호출하지 않는다. | 최종 PT 작동 앱 시연에 필요한 실제 연동 증거는 별도로 준비해야 한다. |
 | 설치·환경·릴리스 | Windows 에뮬레이터 설치·화면, 차량, 음성·음향 시험 및 서명 릴리스·공개 배포 증거는 미확보다. Windows·실차·공개 배포는 별도 승인 범위다. | CI 성공만으로 최종 시연 준비 완료나 릴리스 검증을 주장하지 않는다. |
+
+### 문서 정정 이후 후보의 검증 요구
+
+이번 문서 수정 작업은 커밋·푸시·네트워크·Actions 호출을 수행하지 않는다. 따라서 수정 내용을 담은 새 전체 SHA와 그 CI 아티팩트는 아직 없다. 이는 기준 후보의 보고된 성공과 별개이며 로컬 도구 부재를 기준 후보 CI의 대기 사유로 삼지 않는다.
+
+Oracle에서 문서 수정 후보를 커밋한 뒤 기존 GitHub Actions로 **그 새 SHA**를 검증해야 한다. `source-sha.txt`와 `pleos-build-<full SHA>`가 새 전체 SHA에 일치하고 `testPleosDebugUnitTest`·`assemblePleosDebug`가 성공해야 한다. 전체 XML 25개·139건 및 실패·오류·건너뜀 각각 0, Gradle 로그·입력 해시·unsigned APK를 확인한다. README의 두 `sha256sum -c` 검사와 APK 패키지·ZIP·unsigned 검사도 확인해야 한다. 이 검증은 미수행·대기이며 기준 후보 성공으로 대체하지 않는다.
+
+`git diff --check 60156b86049cc5a2f08cabf82331ca87dc6dc8be HEAD`와 같은 범위 전체 diff·변경 경로가 README.md, contest-brief.md, showcase/REHEARSAL.md 세 문서뿐인지도 새 커밋에서 확인한다. 커밋 전 작업 트리 검사는 최종 HEAD 검사를 대신하지 않는다. CI는 문서 의미의 정확성이나 화면 실행을 검증하지 않으므로 문구는 제공 보고·소스와 별도 대조한다.
 
 ## 제출 단계와 요구 자료
 
@@ -176,7 +185,7 @@ Windows 설치·화면·실제 SDK 콜백·차량 신호·실차·음성·음향
 
 신규 테스트 5건은 기존 `app/src/test/java` JVM 경로에 포함한다. 높이 전환, 비첫 후보·시간별 요금·미확인, 네 조건별 refresh 대응 만료·불변 표시·새 방문지, 요청 1회·되울림, 거절·예외를 검사한다. 기존 `ParkingNavigationTest`도 유지한다. 취소의 실제 Android 리스너는 `setNegativeButton("취소", null)`로 소스 대조하며 JVM의 취소 검사는 확인 없이 모델을 버리는 동작이다.
 
-로컬 PATH에 Java·javac·Gradle이 없고 Android SDK도 확인되지 않아 `testPleosDebugUnitTest`·`assemblePleosDebug`는 미실행이다. 도구 설치·네트워크·자격 증명·커밋·푸시·CI 호출은 하지 않았다. Oracle의 새 커밋 후 기존 GitHub Actions에서 새 전체 SHA의 XML(기존·신규 실패·오류·건너뜀 모두 0), Gradle 로그, 입력 해시와 unsigned APK를 검증해야 한다. `source-sha.txt`·`pleos-build-<full SHA>` 일치, README의 두 `sha256sum` 검사와 기존 APK 패키지·ZIP·unsigned 검사는 대기다. 기준 후보의 성공으로 대신하지 않는다. 기준 `81a430e8d92549ceb9ad7ed97929224decef2cdd` 대비 지정 5개 파일의 작업 트리 diff를 검사하며 새 커밋 HEAD 범위 검사는 대기다.
+**작성 당시 기록(아래 대기·미실행·새 커밋 없음 및 경로 제한은 해당 기능 작성 시점에 한정).** 현행 기준 후보의 보고된 실행 결과와 이후 변경의 검증 요구는 [후보별 검증 상태](#후보별-검증-상태)를 따른다. 로컬 PATH에 Java·javac·Gradle이 없고 Android SDK도 확인되지 않아 `testPleosDebugUnitTest`·`assemblePleosDebug`는 미실행이다. 도구 설치·네트워크·자격 증명·커밋·푸시·CI 호출은 하지 않았다. Oracle의 새 커밋 후 기존 GitHub Actions에서 새 전체 SHA의 XML(기존·신규 실패·오류·건너뜀 모두 0), Gradle 로그, 입력 해시와 unsigned APK를 검증해야 한다. `source-sha.txt`·`pleos-build-<full SHA>` 일치, README의 두 `sha256sum` 검사와 기존 APK 패키지·ZIP·unsigned 검사는 대기다. 기준 후보의 성공으로 대신하지 않는다. 기준 `81a430e8d92549ceb9ad7ed97929224decef2cdd` 대비 지정 5개 파일의 작업 트리 diff를 검사하며 새 커밋 HEAD 범위 검사는 대기다.
 
 합성 검증 설계·unsigned CI·실제 런타임·제출 완료는 별개다. Windows 설치·화면, 실제 SDK 콜백·차량 신호·실차·음성·음향 증거는 미확보다. Windows·실차·공개 배포는 별도 승인 범위다. 1차 필수 제안서·서명 동의서 확보, 선택 프로토타입·적격 GitHub/APK, 최종 PT 필수 작동 앱 시연은 별도 준비 대상이다.
 
@@ -251,9 +260,9 @@ Activity 재생성에서는 **체류 시간만 복원**한다. `onSaveInstanceSt
 
 외부 제원·시설값 출처와 확인일은 기존 README 및 `VehicleProfile.CATALOG_SOURCE`, `SampleTrip`의 2026-11-08 확인 기록을 따른다. 이번에는 네트워크 재확인을 하지 않았다. 대안 A와 입구 좌표는 시연값이다. 1차는 **제안서·서명 동의서 필수**, 적격 GitHub/APK·프로토타입 선택이며, 최종 PT는 **작동 앱 시연 필수**라는 구분을 유지한다.
 
-이번 로컬 환경에는 PATH의 Java·javac·Gradle이 없어 JVM 테스트와 unsigned APK 빌드를 실행하지 못했다. 도구 설치·커밋·푸시·CI 호출은 하지 않았다. `git diff --check`와 지정 editPaths 제한 검사를 수행하며, 이 검사는 테스트 실행 성공을 뜻하지 않는다. 위 신규 테스트와 기존 `ParkingNavigationTest` 등의 XML은 아직 확보하지 못했다.
+**작성 당시 기록(아래 대기·미실행·새 커밋 없음 및 경로 제한은 해당 기능 작성 시점에 한정).** 현행 기준 후보의 보고된 실행 결과와 이후 변경의 검증 요구는 [후보별 검증 상태](#후보별-검증-상태)를 따른다. 이번 로컬 환경에는 PATH의 Java·javac·Gradle이 없어 JVM 테스트와 unsigned APK 빌드를 실행하지 못했다. 도구 설치·커밋·푸시·CI 호출은 하지 않았다. `git diff --check`와 지정 editPaths 제한 검사를 수행하며, 이 검사는 테스트 실행 성공을 뜻하지 않는다. 위 신규 테스트와 기존 `ParkingNavigationTest` 등의 XML은 아직 확보하지 못했다.
 
-후속 구현에서 Oracle이 만든 **새 후보 전체 SHA**에 대한 기존 GitHub Actions 결과를 확인해야 한다. `pleos-build-<full SHA>` 이름과 `source-sha.txt`를 대조하고, 동일 SHA 체크아웃에서 README의 `sha256sum -c /path/to/input-sha256.txt`, 아티팩트 폴더에서 `sha256sum -c apk-sha256.txt`를 확인한다. `gradle.log`의 `testPleosDebugUnitTest`·unsigned `assemblePleosDebug` 성공, 기존·신규 테스트 XML의 실패·오류·건너뜀 모두 0, 워크플로 APK 패키지·ZIP·unsigned 검사 성공을 확인할 때까지 실행 수용 항목 8은 대기다. 기준 SHA나 과거 성공 보고로 대체하지 않는다.
+**작성 당시 기록(아래 대기·미실행·새 커밋 없음 및 경로 제한은 해당 기능 작성 시점에 한정).** 현행 기준 후보의 보고된 실행 결과와 이후 변경의 검증 요구는 [후보별 검증 상태](#후보별-검증-상태)를 따른다. 후속 구현에서 Oracle이 만든 **새 후보 전체 SHA**에 대한 기존 GitHub Actions 결과를 확인해야 한다. `pleos-build-<full SHA>` 이름과 `source-sha.txt`를 대조하고, 동일 SHA 체크아웃에서 README의 `sha256sum -c /path/to/input-sha256.txt`, 아티팩트 폴더에서 `sha256sum -c apk-sha256.txt`를 확인한다. `gradle.log`의 `testPleosDebugUnitTest`·unsigned `assemblePleosDebug` 성공, 기존·신규 테스트 XML의 실패·오류·건너뜀 모두 0, 워크플로 APK 패키지·ZIP·unsigned 검사 성공을 확인할 때까지 실행 수용 항목 8은 대기다. 기준 SHA나 과거 성공 보고로 대체하지 않는다.
 
 Windows 설치·화면·재생성, 실제 SDK 콜백·차량 신호, 실차·음성·음향·공개 배포 증거는 없다. 별도 승인된 환경에서 위 기대값과 실제 화면·신호를 대조해야 한다.
 
@@ -292,7 +301,7 @@ Windows 설치·화면·재생성, 실제 SDK 콜백·차량 신호, 실차·음
 
 원본 높이·기존 출처, 사용자 확인 총높이, 판단 적용 높이는 상세에만 구분한다. 첫 화면은 기존 대안 이유 최대 한 줄을 유지한다. 삭제·적용은 refresh에서 후보·설명을 함께 갱신하고 선택을 만료시킨다. 새 테스트는 기존과 같은 `app/src/test/java`에 있어 `testPleosDebugUnitTest` 대상이다. 위 assertion 및 소스 경로 대조는 실행 통과 증거가 아니다.
 
-이번 작업 환경 PATH에 Java·javac·Gradle이 없어 테스트·unsigned APK 빌드는 실행하지 못했다. 도구 설치·네트워크·CI 호출·커밋·푸시는 수행하지 않았다. 새 후보 SHA와 CI 아티팩트가 제공되지 않아 수용 항목 8은 대기다. Oracle의 새 커밋 후 GitHub Actions에서 `testPleosDebugUnitTest`·`assemblePleosDebug`, 신규 VehicleHeightTest 및 기존 ParkingNavigationTest 등 XML 실패·오류·건너뜀 0을 확인해야 한다. `source-sha.txt`와 `pleos-build-<full SHA>`가 새 전체 SHA와 일치해야 하며 README의 두 sha256sum 검사, 입력·APK 해시, Gradle 로그, APK 패키지·ZIP·unsigned 검사를 확인한다. 기준 후보 성공으로 대체하지 않는다. 커밋 후 `git diff --check 1cbfb84534174c5d459131be2c52581939d66cc7 HEAD` 및 같은 범위의 지정 6개 경로 제한도 확인해야 한다.
+**작성 당시 기록(아래 대기·미실행·새 커밋 없음 및 경로 제한은 해당 기능 작성 시점에 한정).** 현행 기준 후보의 보고된 실행 결과와 이후 변경의 검증 요구는 [후보별 검증 상태](#후보별-검증-상태)를 따른다. 이번 작업 환경 PATH에 Java·javac·Gradle이 없어 테스트·unsigned APK 빌드는 실행하지 못했다. 도구 설치·네트워크·CI 호출·커밋·푸시는 수행하지 않았다. 새 후보 SHA와 CI 아티팩트가 제공되지 않아 수용 항목 8은 대기다. Oracle의 새 커밋 후 GitHub Actions에서 `testPleosDebugUnitTest`·`assemblePleosDebug`, 신규 VehicleHeightTest 및 기존 ParkingNavigationTest 등 XML 실패·오류·건너뜀 0을 확인해야 한다. `source-sha.txt`와 `pleos-build-<full SHA>`가 새 전체 SHA와 일치해야 하며 README의 두 sha256sum 검사, 입력·APK 해시, Gradle 로그, APK 패키지·ZIP·unsigned 검사를 확인한다. 기준 후보 성공으로 대체하지 않는다. 커밋 후 `git diff --check 1cbfb84534174c5d459131be2c52581939d66cc7 HEAD` 및 같은 범위의 지정 6개 경로 제한도 확인해야 한다.
 
 1차 제안서·서명 동의서 필수와 최종 PT 작동 앱 시연 필수 구분을 유지한다. 외부 자료는 기존 출처·확인일을 따르며 이번에는 재확인하지 않았다. Windows 설치·화면·수명주기, 실제 SDK 콜백·차량 신호·실차·음성·음향 증거는 미확보다.
 
@@ -325,7 +334,7 @@ Windows 설치·화면·재생성, 실제 SDK 콜백·차량 신호, 실차·음
 
 요금 미확인은 알려진 요금 뒤이며 0원은 유효한 요금이다. 무료여도 입구 누락·제한·확인 필요이면 요청 가능한 유료 후보보다 뒤이며 선택할 수 없다. 기준 변경·계산·설명만으로 fake 요청은 0건이다. 변경 전 선택 확인은 STALE이며 새 대안 A 선택 확인만 원래 방문지와 시연 좌표 37.51400, 127.06100으로 1건 요청한다. 중복 확인은 추가 요청하지 않고 REJECTED는 실패로 기록한다. 설명은 전달된 후보의 판정과 순서를 사용하며 재계산하지 않는다.
 
-로컬 PATH에 Java·javac·Gradle이 없어 JVM 테스트·unsigned APK 빌드는 미실행이다. 도구 설치·네트워크·CI 호출·커밋·푸시는 하지 않았다. 새 후보 커밋은 Oracle의 후속 단계이며, 기존 GitHub Actions에서 새 전체 SHA에 결합된 `testPleosDebugUnitTest`·`assemblePleosDebug` 성공과 기존·신규 XML 실패·오류·건너뜀 0을 확인해야 한다. `source-sha.txt`와 `pleos-build-<full SHA>`의 일치, README의 두 sha256sum 검사, 입력 해시·APK 해시·Gradle 로그·APK 패키지·ZIP·unsigned 검사와 기준 694cf8d2a191945d64738276fea096a7e0e270d6 대비 전체 diff·지정 7개 경로 제한은 새 후보에서 검증 대기다. 기준 후보 성공을 새 증거로 대신하지 않는다.
+**작성 당시 기록(아래 대기·미실행·새 커밋 없음 및 경로 제한은 해당 기능 작성 시점에 한정).** 현행 기준 후보의 보고된 실행 결과와 이후 변경의 검증 요구는 [후보별 검증 상태](#후보별-검증-상태)를 따른다. 로컬 PATH에 Java·javac·Gradle이 없어 JVM 테스트·unsigned APK 빌드는 미실행이다. 도구 설치·네트워크·CI 호출·커밋·푸시는 하지 않았다. 새 후보 커밋은 Oracle의 후속 단계이며, 기존 GitHub Actions에서 새 전체 SHA에 결합된 `testPleosDebugUnitTest`·`assemblePleosDebug` 성공과 기존·신규 XML 실패·오류·건너뜀 0을 확인해야 한다. `source-sha.txt`와 `pleos-build-<full SHA>`의 일치, README의 두 sha256sum 검사, 입력 해시·APK 해시·Gradle 로그·APK 패키지·ZIP·unsigned 검사와 기준 694cf8d2a191945d64738276fea096a7e0e270d6 대비 전체 diff·지정 7개 경로 제한은 새 후보에서 검증 대기다. 기준 후보 성공을 새 증거로 대신하지 않는다.
 
 Windows 화면·Activity 재생성·실제 SDK 콜백·실차·음성·음향 관측 증거는 없다. 외부 사실은 기존 출처·확인일을 유지하며 외부 재확인은 하지 않았다. 1차 필수 제안서·서명 동의서, 선택 프로토타입·적격 GitHub/APK, 최종 PT 작동 시연의 제출 단계 구분을 유지하며 이 합성 사례는 제출·시연 완료를 뜻하지 않는다.
 
@@ -347,9 +356,9 @@ Windows 화면·Activity 재생성·실제 SDK 콜백·실차·음성·음향 �
 | 계산·설명·잘못된 좌표 선택 → 유효한 대안 A 새 선택 → 확인 | 확인 전 fake 요청 0건. 확인 후 원래 방문지 “스타필드 코엑스몰”과 37.51400, 127.06100으로 정확히 1건. 입구 되울림은 방문지 유지. REJECTED는 실패 receipt, 중복 확인 STALE·추가 요청 없음 |
 | 위도·경도 각각 NaN·±무한대·포함 범위 바로 밖 / 위도 ±90·경도 ±180·0 조합 | 오류 입력마다 요청 불가·선택 차단. 유효 경계 조합은 전달 좌표와 객체 그대로 유지 |
 
-테스트는 기존 `app/src/test/java`에 있어 `testPleosDebugUnitTest` 대상이다. 이번 환경 PATH에서 Java·javac·Gradle을 찾지 못해 JVM 테스트·unsigned APK 빌드는 실행하지 못했다. 도구 설치·네트워크·자격 증명·CI 호출·커밋·푸시는 하지 않았다. 로컬 `git diff --check`와 네 editPaths 제한을 확인하며 이는 JVM assertion 실행 증거가 아니다.
+**작성 당시 기록(아래 대기·미실행·새 커밋 없음 및 경로 제한은 해당 기능 작성 시점에 한정).** 현행 기준 후보의 보고된 실행 결과와 이후 변경의 검증 요구는 [후보별 검증 상태](#후보별-검증-상태)를 따른다. 테스트는 기존 `app/src/test/java`에 있어 `testPleosDebugUnitTest` 대상이다. 이번 환경 PATH에서 Java·javac·Gradle을 찾지 못해 JVM 테스트·unsigned APK 빌드는 실행하지 못했다. 도구 설치·네트워크·자격 증명·CI 호출·커밋·푸시는 하지 않았다. 로컬 `git diff --check`와 네 editPaths 제한을 확인하며 이는 JVM assertion 실행 증거가 아니다.
 
-Oracle의 새 후보 커밋 후 기존 GitHub Actions에서 `testPleosDebugUnitTest`·`assemblePleosDebug` 성공, 기존·신규 XML 실패·오류·건너뜀 모두 0을 확인해야 한다. 새 전체 SHA가 `source-sha.txt`와 `pleos-build-<full SHA>`에 일치하고 README의 두 `sha256sum` 검사, 입력 해시·APK 해시·Gradle 로그·APK 패키지·ZIP·unsigned 검사가 통과해야 한다. 기준 SHA 성공으로 대신하지 않는다. 새 커밋이 없으므로 해당 아티팩트는 미확보이며 수용 항목 7은 대기다. 커밋 후 `git diff --check 492be84715c2122cc00d04f42b4d4a9f3f3551d4 HEAD`와 같은 범위 네 파일 제한·전체 diff 검증도 대기다. 작업 트리 검사는 커밋 범위 검사를 대신하지 않는다.
+**작성 당시 기록(아래 대기·미실행·새 커밋 없음 및 경로 제한은 해당 기능 작성 시점에 한정).** 현행 기준 후보의 보고된 실행 결과와 이후 변경의 검증 요구는 [후보별 검증 상태](#후보별-검증-상태)를 따른다. Oracle의 새 후보 커밋 후 기존 GitHub Actions에서 `testPleosDebugUnitTest`·`assemblePleosDebug` 성공, 기존·신규 XML 실패·오류·건너뜀 모두 0을 확인해야 한다. 새 전체 SHA가 `source-sha.txt`와 `pleos-build-<full SHA>`에 일치하고 README의 두 `sha256sum` 검사, 입력 해시·APK 해시·Gradle 로그·APK 패키지·ZIP·unsigned 검사가 통과해야 한다. 기준 SHA 성공으로 대신하지 않는다. 새 커밋이 없으므로 해당 아티팩트는 미확보이며 수용 항목 7은 대기다. 커밋 후 `git diff --check 492be84715c2122cc00d04f42b4d4a9f3f3551d4 HEAD`와 같은 범위 네 파일 제한·전체 diff 검증도 대기다. 작업 트리 검사는 커밋 범위 검사를 대신하지 않는다.
 
 외부 출처·확인일은 기존 SampleTrip 및 README 기록을 유지하며 이번에는 외부 재확인을 하지 않았다. Windows 설치·화면·실제 SDK 콜백·실차·음성·음향·공개 배포 증거는 없다. 1차 필수 제안서·서명 동의서, 선택 프로토타입·적격 GitHub/APK, 최종 PT 필수 작동 앱 시연의 구분을 유지한다. 합성 검증·unsigned CI·실제 런타임 관측·제출 완료는 별도 단계다.
 
@@ -364,9 +373,9 @@ Oracle의 새 후보 커밋 후 기존 GitHub Actions에서 `testPleosDebugUnitT
 
 소스 assertion 근거는 `widthChangeFlowsFromHardwareThroughBothPrioritiesAndConfirmedNavigation`(두 기준·순서·0원 보존·RESTRICTED·설명·선택·요청), `inclusiveBoundaryAndUnknownWidthsRemainDistinctFromUnregistered`(경계·누락·미등록·요청 수), `independentCatalogSourcesAndExactModelRule`(독립 출처·정확한 모델), `widthMatchDoesNotBypassExistingBlocksAndExplanationUsesSuppliedVerdict`(높이·전기차 정책·좌표 차단·전달 판정)이다. 변경·재계산·설명·선택까지 fake 요청 0건이고 이전 선택은 STALE이다. 새 대안을 확인할 때만 원래 방문지와 가상 입구 37.6, 127.1로 1건 요청한다. 되울림은 방문지를 보존하며 REJECTED는 실패 receipt로 남고 중복 확인은 추가 요청하지 않는다. 테스트는 기존 `app/src/test/java`에 있어 `testPleosDebugUnitTest` 대상이다.
 
-로컬 PATH에 Java·javac·Gradle이 없어 JVM 테스트·unsigned APK 빌드는 미실행이다. 도구 설치·네트워크·자격 증명·CI 호출·커밋·푸시는 수행하지 않았다. 합성 assertion 소스 대조는 실행 통과 증거가 아니다. Oracle의 새 커밋 후 기존 GitHub Actions에서 새 전체 SHA에 결합된 `testPleosDebugUnitTest`·`assemblePleosDebug` 성공, 기존·신규 XML 실패·오류·건너뜀 모두 0을 확인해야 한다. `source-sha.txt`와 `pleos-build-<full SHA>` 일치, README의 두 `sha256sum` 검사, 입력 해시·APK 해시·Gradle 로그·APK 패키지·ZIP·unsigned 검사는 대기다. 기준 후보 성공으로 대체하지 않는다.
+**작성 당시 기록(아래 대기·미실행·새 커밋 없음 및 경로 제한은 해당 기능 작성 시점에 한정).** 현행 기준 후보의 보고된 실행 결과와 이후 변경의 검증 요구는 [후보별 검증 상태](#후보별-검증-상태)를 따른다. 로컬 PATH에 Java·javac·Gradle이 없어 JVM 테스트·unsigned APK 빌드는 미실행이다. 도구 설치·네트워크·자격 증명·CI 호출·커밋·푸시는 수행하지 않았다. 합성 assertion 소스 대조는 실행 통과 증거가 아니다. Oracle의 새 커밋 후 기존 GitHub Actions에서 새 전체 SHA에 결합된 `testPleosDebugUnitTest`·`assemblePleosDebug` 성공, 기존·신규 XML 실패·오류·건너뜀 모두 0을 확인해야 한다. `source-sha.txt`와 `pleos-build-<full SHA>` 일치, README의 두 `sha256sum` 검사, 입력 해시·APK 해시·Gradle 로그·APK 패키지·ZIP·unsigned 검사는 대기다. 기준 후보 성공으로 대체하지 않는다.
 
-작업 트리의 기준 `1a984a3c81387935ad2ad7bed53c10f156119bd9` 대비 diff 공백 검사와 지정 8개 editPaths 제한을 확인한다. 새 커밋이 없으므로 같은 기준부터 새 HEAD까지의 최종 diff 검사 및 후보 아티팩트는 대기다. README 증거 계약·주행 제한·서명·권한·의존성·워크플로·게시 설정은 변경하지 않는다.
+**작성 당시 기록(아래 대기·미실행·새 커밋 없음 및 경로 제한은 해당 기능 작성 시점에 한정).** 현행 기준 후보의 보고된 실행 결과와 이후 변경의 검증 요구는 [후보별 검증 상태](#후보별-검증-상태)를 따른다. 작업 트리의 기준 `1a984a3c81387935ad2ad7bed53c10f156119bd9` 대비 diff 공백 검사와 지정 8개 editPaths 제한을 확인한다. 새 커밋이 없으므로 같은 기준부터 새 HEAD까지의 최종 diff 검사 및 후보 아티팩트는 대기다. README 증거 계약·주행 제한·서명·권한·의존성·워크플로·게시 설정은 변경하지 않는다.
 
 Windows 설치·화면·실제 SDK 콜백·실제 차량 신호·실차·음성·음향·공개 배포 관측 증거는 없다. 합성 테스트·unsigned CI·실제 런타임 관측·제출 완료는 별도 단계다. 1차 필수 제안서·서명 동의서 확보, 선택 프로토타입·적격 GitHub/APK, 최종 PT 필수 작동 앱 시연의 구분을 유지하며 이번 작업은 제출·시연 완료를 뜻하지 않는다.
 
@@ -386,9 +395,9 @@ Windows 설치·화면·실제 SDK 콜백·실제 차량 신호·실차·음성�
 
 기존 MainActivity의 `won(null)`은 ‘요금 미확인’을 표시한다. 첫 화면에 새 설정·차량값·출처를 추가하지 않으며 대안 이유는 기존 최대 한 줄을 유지한다. `ParkingPlanTest`의 기존 금액 기대값은 유지하고 반환형만 맞췄다.
 
-로컬 PATH에 Java·javac·Gradle이 없어 `testPleosDebugUnitTest`·`assemblePleosDebug`는 미실행이다. 합성 assertion 소스 대조는 실행 증거가 아니다. 도구 설치·네트워크·자격 증명·CI 호출·커밋·푸시는 하지 않는다. Oracle의 새 커밋 후 기존 GitHub Actions에서 새 전체 SHA에 결합된 테스트 XML(기존·신규 실패·오류·건너뜀 모두 0)과 Gradle 로그를 확인해야 한다. `source-sha.txt`·`pleos-build-<full SHA>` 일치, README의 두 `sha256sum` 검사, 입력 해시·unsigned APK·패키지·ZIP·unsigned 검사는 대기다. 기준 후보 성공으로 대신하지 않는다.
+**작성 당시 기록(아래 대기·미실행·새 커밋 없음 및 경로 제한은 해당 기능 작성 시점에 한정).** 현행 기준 후보의 보고된 실행 결과와 이후 변경의 검증 요구는 [후보별 검증 상태](#후보별-검증-상태)를 따른다. 로컬 PATH에 Java·javac·Gradle이 없어 `testPleosDebugUnitTest`·`assemblePleosDebug`는 미실행이다. 합성 assertion 소스 대조는 실행 증거가 아니다. 도구 설치·네트워크·자격 증명·CI 호출·커밋·푸시는 하지 않는다. Oracle의 새 커밋 후 기존 GitHub Actions에서 새 전체 SHA에 결합된 테스트 XML(기존·신규 실패·오류·건너뜀 모두 0)과 Gradle 로그를 확인해야 한다. `source-sha.txt`·`pleos-build-<full SHA>` 일치, README의 두 `sha256sum` 검사, 입력 해시·unsigned APK·패키지·ZIP·unsigned 검사는 대기다. 기준 후보 성공으로 대신하지 않는다.
 
-기준 `56d0700dad90011dda99dcb69ef0488f3dc1306f` 대비 작업 트리의 공백·전체 diff·신규 테스트 포함 지정 6개 editPaths 제한을 로컬 확인한다. 새 커밋이 없으므로 같은 기준의 최종 HEAD 범위 검사와 새 SHA 아티팩트 증명은 대기다. README 증거 계약·주행 제한·서명·권한·의존성·워크플로·게시 설정은 변경하지 않는다.
+**작성 당시 기록(아래 대기·미실행·새 커밋 없음 및 경로 제한은 해당 기능 작성 시점에 한정).** 현행 기준 후보의 보고된 실행 결과와 이후 변경의 검증 요구는 [후보별 검증 상태](#후보별-검증-상태)를 따른다. 기준 `56d0700dad90011dda99dcb69ef0488f3dc1306f` 대비 작업 트리의 공백·전체 diff·신규 테스트 포함 지정 6개 editPaths 제한을 로컬 확인한다. 새 커밋이 없으므로 같은 기준의 최종 HEAD 범위 검사와 새 SHA 아티팩트 증명은 대기다. README 증거 계약·주행 제한·서명·권한·의존성·워크플로·게시 설정은 변경하지 않는다.
 
 Windows 설치·화면·실제 SDK 콜백·실제 차량 신호·실차·음성·음향·공개 배포 관측 증거는 없다. 합성 검증·unsigned CI·실제 런타임 관측·제출 완료는 별도 단계다. 1차 필수 제안서·서명 동의서 확보, 선택 프로토타입·적격 GitHub/APK, 최종 PT 필수 작동 앱 시연의 구분을 유지하며 이번 작업은 제출·시연 완료를 뜻하지 않는다.
 
@@ -401,7 +410,7 @@ Windows 설치·화면·실제 SDK 콜백·실제 차량 신호·실차·음성�
 
 `VehicleReadResultTest`의 가짜 시계·읽기·스케줄러는 sleep이나 Android 런타임 없이 공유 Session을 실행한다. `noResponseExpiresOnceAtFixedDeadlineAndLateResultsAreIgnored`는 2999/3000ms·중복 만료·늦은 결과, `retrySharesDeadlineWhetherFirstResponseIsEarlyOrLate`는 1/2회 읽기와 고정 마감, `deadlineResultsExpireAndOldEventsCannotAffectReplacement` 및 기존 세션 테스트는 이벤트 순서·세션 교체를 검사한다. `hardwareBeforeDeadlineKeepsRecommendationsAfterExpiryEvent`는 합성 AAOS 1850mm·비전기차의 코엑스 12,000원 우선/요청 가능 2곳과 2250mm의 대안 A 6,000원 우선/코엑스 제한/요청 가능 1곳을 검사한다. `expiredUnknownCanSupplementHeightAndOnlyConfirmRequestsEntrance`는 만료부터 보완·확인·거절까지 연결한다. 연결됐지만 속성이 누락되면 즉시 종료하며 재시도하지 않는 기존 검사도 유지한다.
 
-이 정책은 API 호출을 강제 종료하거나 단일 executor의 막힌 읽기를 해제하지 않는다. UI 대기와 결과 수용의 상한이며 실제 Pleos 응답시간의 관측값이 아니다. 이 변경의 로컬 환경에는 Java·javac·Gradle 및 Android SDK가 확인되지 않아 JVM 테스트와 unsigned APK 빌드는 미실행이다. 새 커밋은 만들지 않았으며 새 후보의 기존 GitHub Actions 검증은 대기다. 새 전체 SHA와 `source-sha.txt`, `pleos-build-<full SHA>`, XML(실패·오류·건너뜀 모두 0), Gradle 로그, 입력 해시, unsigned APK를 결합해 검증해야 한다. README의 두 `sha256sum` 검사와 기존 패키지·ZIP·unsigned 검사 및 기준 SHA `a3f71cfb6e189a47fc8ebbe862c7247e01eeeb23` 대비 전체 diff도 필요하다. 기준 후보 성공은 새 후보 증거가 아니다.
+**작성 당시 기록(아래 대기·미실행·새 커밋 없음 및 경로 제한은 해당 기능 작성 시점에 한정).** 현행 기준 후보의 보고된 실행 결과와 이후 변경의 검증 요구는 [후보별 검증 상태](#후보별-검증-상태)를 따른다. 이 정책은 API 호출을 강제 종료하거나 단일 executor의 막힌 읽기를 해제하지 않는다. UI 대기와 결과 수용의 상한이며 실제 Pleos 응답시간의 관측값이 아니다. 이 변경의 로컬 환경에는 Java·javac·Gradle 및 Android SDK가 확인되지 않아 JVM 테스트와 unsigned APK 빌드는 미실행이다. 새 커밋은 만들지 않았으며 새 후보의 기존 GitHub Actions 검증은 대기다. 새 전체 SHA와 `source-sha.txt`, `pleos-build-<full SHA>`, XML(실패·오류·건너뜀 모두 0), Gradle 로그, 입력 해시, unsigned APK를 결합해 검증해야 한다. README의 두 `sha256sum` 검사와 기존 패키지·ZIP·unsigned 검사 및 기준 SHA `a3f71cfb6e189a47fc8ebbe862c7247e01eeeb23` 대비 전체 diff도 필요하다. 기준 후보 성공은 새 후보 증거가 아니다.
 
 이는 합성 검증 설계와 소스 변경이며 Windows 에뮬레이터·실제 SDK 콜백·실차·음성·음향의 실행 증거는 미확보다. 1차 필수 제안서·서명 동의서, 선택 프로토타입·적격 GitHub/APK, 최종 PT 작동 시연의 제출 단계 구분은 유지한다.
 
@@ -422,11 +431,11 @@ Lot의 두 생성자 모두 공통 record 생성 경계를 지나 null을 UNKNOW
 
 비전기차 선택은 차량 조건 갱신에 대응하는 invalidateSelections 후 STALE이고 요청 0건이다. 전기차 계산·설명·대안 선택·확인창 생성까지도 0건이며 새 대안 A 확인만 원래 방문지 ‘스타필드 코엑스몰’과 시연 입구 37.51400, 127.06100으로 정확히 1건 요청한다. 되울림은 원래 방문지를 보존하고 중복 확인은 추가 요청하지 않는다. REJECTED와 예외는 실패 receipt로 기록한다. 기존 MainActivity의 이유 `setSingleLine(true)`와 상세의 차량값·출처·시설 provenance 경로는 유지한다.
 
-신규 네 테스트는 기존 `app/src/test/java`에 있어 `testPleosDebugUnitTest` 대상이다. 생성자·정책 행렬·전환 통합·독립 차단 assertion을 기존 ParkingPlanTest, ParkingNavigationTest, EntranceConfirmationTest, VehicleWidthTest, EntranceCoordinateTest와 소스로 대조했다. 로컬 PATH에 Java·javac·Gradle이 없고 Android SDK도 확인되지 않아 JVM 테스트·unsigned APK 빌드는 미실행이다. 도구 설치·네트워크·자격 증명·CI 호출·커밋·푸시는 수행하지 않았다. 정적 검사는 실행 통과 증거가 아니다.
+**작성 당시 기록(아래 대기·미실행·새 커밋 없음 및 경로 제한은 해당 기능 작성 시점에 한정).** 현행 기준 후보의 보고된 실행 결과와 이후 변경의 검증 요구는 [후보별 검증 상태](#후보별-검증-상태)를 따른다. 신규 네 테스트는 기존 `app/src/test/java`에 있어 `testPleosDebugUnitTest` 대상이다. 생성자·정책 행렬·전환 통합·독립 차단 assertion을 기존 ParkingPlanTest, ParkingNavigationTest, EntranceConfirmationTest, VehicleWidthTest, EntranceCoordinateTest와 소스로 대조했다. 로컬 PATH에 Java·javac·Gradle이 없고 Android SDK도 확인되지 않아 JVM 테스트·unsigned APK 빌드는 미실행이다. 도구 설치·네트워크·자격 증명·CI 호출·커밋·푸시는 수행하지 않았다. 정적 검사는 실행 통과 증거가 아니다.
 
-Oracle의 새 후보 커밋 후 기존 GitHub Actions에서 새 전체 SHA에 결합된 `testPleosDebugUnitTest`·`assemblePleosDebug` 성공, 기존·신규 XML의 실패·오류·건너뜀 모두 0을 확인해야 한다. `source-sha.txt` 및 `pleos-build-<full SHA>` 일치, Gradle 로그·입력 해시·unsigned APK, README의 `sha256sum -c apk-sha256.txt` 및 동일 SHA 체크아웃의 `sha256sum -c /path/to/input-sha256.txt`, 기존 APK 패키지·ZIP·unsigned 검사도 대기다. 기준 후보 성공으로 새 후보 증거를 대신하지 않는다.
+**작성 당시 기록(아래 대기·미실행·새 커밋 없음 및 경로 제한은 해당 기능 작성 시점에 한정).** 현행 기준 후보의 보고된 실행 결과와 이후 변경의 검증 요구는 [후보별 검증 상태](#후보별-검증-상태)를 따른다. Oracle의 새 후보 커밋 후 기존 GitHub Actions에서 새 전체 SHA에 결합된 `testPleosDebugUnitTest`·`assemblePleosDebug` 성공, 기존·신규 XML의 실패·오류·건너뜀 모두 0을 확인해야 한다. `source-sha.txt` 및 `pleos-build-<full SHA>` 일치, Gradle 로그·입력 해시·unsigned APK, README의 `sha256sum -c apk-sha256.txt` 및 동일 SHA 체크아웃의 `sha256sum -c /path/to/input-sha256.txt`, 기존 APK 패키지·ZIP·unsigned 검사도 대기다. 기준 후보 성공으로 새 후보 증거를 대신하지 않는다.
 
-기준 `041e2cb4bfbf97916813a56adeac2bbd294c39a8` 대비 작업 트리의 공백·전체 diff·신규 테스트 포함 네 editPaths 제한을 로컬 확인한다. 새 커밋이 없으므로 `git diff --check 041e2cb4bfbf97916813a56adeac2bbd294c39a8 HEAD`와 같은 범위 파일 제한·전체 diff의 새 후보 검증은 대기다. README 증거 계약·주행 제한·서명·권한·의존성·워크플로·게시 설정은 변경하지 않는다.
+**작성 당시 기록(아래 대기·미실행·새 커밋 없음 및 경로 제한은 해당 기능 작성 시점에 한정).** 현행 기준 후보의 보고된 실행 결과와 이후 변경의 검증 요구는 [후보별 검증 상태](#후보별-검증-상태)를 따른다. 기준 `041e2cb4bfbf97916813a56adeac2bbd294c39a8` 대비 작업 트리의 공백·전체 diff·신규 테스트 포함 네 editPaths 제한을 로컬 확인한다. 새 커밋이 없으므로 `git diff --check 041e2cb4bfbf97916813a56adeac2bbd294c39a8 HEAD`와 같은 범위 파일 제한·전체 diff의 새 후보 검증은 대기다. README 증거 계약·주행 제한·서명·권한·의존성·워크플로·게시 설정은 변경하지 않는다.
 
 Windows 설치·화면·실제 SDK 콜백·차량 신호·실차·음성·음향·공개 배포 관측 증거는 없다. 합성 assertion·unsigned CI·실제 런타임·제출 완료는 별도 단계다. 1차 필수 제안서·서명 동의서 확보, 선택 프로토타입·적격 GitHub/APK, 최종 PT 필수 작동 앱 시연의 구분을 유지하며 이번 작업은 제출·시연 완료를 뜻하지 않는다.
 
@@ -441,7 +450,7 @@ Windows 설치·화면·실제 SDK 콜백·차량 신호·실차·음성·음향
 
 근거는 신규 테스트 assertion 및 MainActivity 상세 리스너·refresh·확인창·한 줄 이유 표시의 소스 대조다. 외부 시설 사실은 기존 SampleTrip 출처·확인일을 유지하며 이번 외부 재확인은 하지 않았다. 대안 A·입구 좌표는 시연값, 할인은 사용자 가정이며 실제 구매 검증이나 SDK 관측이 아니다.
 
-이번 체크아웃의 로컬 Java·Gradle·Android SDK 실행 환경은 확인되지 않아 테스트와 APK 빌드 성공을 주장하지 않는다. 신규 테스트는 기존 app/src/test/java 아래의 testPleosDebugUnitTest 대상이다. 새 커밋 후 기존 GitHub Actions에서 testPleosDebugUnitTest·assemblePleosDebug와 높이·차폭·전기차 정책·입구 오류 회귀 XML을 확인해야 한다. 전체 XML 실패·오류·건너뜀 0, 새 전체 SHA의 source-sha.txt·pleos-build-<full SHA> 일치, README의 두 sha256sum 검사, 입력 해시·unsigned APK·패키지·ZIP·unsigned 검사와 기준 후보 대비 전체 diff는 아직 미확인이다. 기준 후보의 성공으로 대체하지 않는다. 이 작업에서는 커밋·푸시·네트워크·CI 변경을 하지 않는다.
+**작성 당시 기록.** 아래 실행 환경·미확인 및 후속 CI 요구는 당시 상태이며 현행 기준 후보의 보고된 결과는 [후보별 검증 상태](#후보별-검증-상태)를 따른다. 이번 체크아웃의 로컬 Java·Gradle·Android SDK 실행 환경은 확인되지 않아 테스트와 APK 빌드 성공을 주장하지 않는다. 신규 테스트는 기존 app/src/test/java 아래의 testPleosDebugUnitTest 대상이다. 새 커밋 후 기존 GitHub Actions에서 testPleosDebugUnitTest·assemblePleosDebug와 높이·차폭·전기차 정책·입구 오류 회귀 XML을 확인해야 한다. 전체 XML 실패·오류·건너뜀 0, 새 전체 SHA의 source-sha.txt·pleos-build-<full SHA> 일치, README의 두 sha256sum 검사, 입력 해시·unsigned APK·패키지·ZIP·unsigned 검사와 기준 후보 대비 전체 diff는 아직 미확인이다. 기준 후보의 성공으로 대체하지 않는다. 이 작업에서는 커밋·푸시·네트워크·CI 변경을 하지 않는다.
 
 Windows 설치·화면·실제 SDK 콜백·실차·음성·음향·공개 배포 증거는 없다. 합성 검증 설계·unsigned CI·실제 런타임 관측·제출 완료는 별도 단계다. 1차 필수 제안서·서명 동의서, 선택 프로토타입·적격 GitHub/APK, 최종 PT 필수 작동 앱 시연의 구분을 유지한다.
 
@@ -462,7 +471,7 @@ Windows 설치·화면·실제 SDK 콜백·실차·음성·음향·공개 배포
 
 180분에서 높이만 1850→2250mm로 바꾸면 두 기준 모두 코엑스 RESTRICTED·선택 불가, 대안 A 9,000원·요청 가능 1곳이다. 1850mm·ELECTRIC이면 코엑스 NEEDS_CHECK이며 높이 누락은 요청 가능 0곳이다. 시간 입력·계산·설명·확인 모델 생성까지 요청 0건이다. 241분·요금 우선의 새 대안 A 확인창은 ‘241분 예상 12,500원’을 표시한다. 확인 후 원래 방문지와 37.51400, 127.06100으로 정확히 1건 요청하며 중복 확인은 추가 요청하지 않는다. 거절·예외는 실패다. 입력 경계 1·90·121·180·241·360, int 범위 우회 차단, 잘못된 복원값, 취소·오래된 창·복원 상태 보존도 신규 assertion으로 대조한다.
 
-로컬 PATH에 java·javac·gradle이 없고 알려진 Android SDK 경로도 없어 `testPleosDebugUnitTest`·`assemblePleosDebug`는 미실행이다. 신규 테스트는 기존 app/src/test/java 경로에 있어 해당 단위 테스트 대상이다. 소스 대조와 작업 트리 공백 검사는 실행 통과 증거가 아니다. 커밋·푸시·네트워크·자격 증명·도구 설치·CI 변경은 하지 않는다. Oracle이 새 후보를 커밋한 뒤 기존 GitHub Actions에서 새 전체 SHA와 `source-sha.txt`·`pleos-build-<full SHA>` 일치, 테스트·빌드 성공과 기존·신규 XML(차폭·좌표·제외 회귀 포함)의 실패·오류·건너뜀 모두 0을 확인해야 한다. Gradle 로그·입력 해시·unsigned APK, README의 두 sha256sum 검사 및 기존 APK 패키지·ZIP·unsigned 검사도 대기다. 기준 `bcb60a1176d1a1f9617b89cf8f8370c1233f68d6` 대비 새 HEAD 전체 diff·`git diff --check`·지정 5개 editPaths 제한을 확인해야 하며 기준 후보 성공으로 대체하지 않는다.
+**작성 당시 기록(아래 대기·미실행·새 커밋 없음 및 경로 제한은 해당 기능 작성 시점에 한정).** 현행 기준 후보의 보고된 실행 결과와 이후 변경의 검증 요구는 [후보별 검증 상태](#후보별-검증-상태)를 따른다. 로컬 PATH에 java·javac·gradle이 없고 알려진 Android SDK 경로도 없어 `testPleosDebugUnitTest`·`assemblePleosDebug`는 미실행이다. 신규 테스트는 기존 app/src/test/java 경로에 있어 해당 단위 테스트 대상이다. 소스 대조와 작업 트리 공백 검사는 실행 통과 증거가 아니다. 커밋·푸시·네트워크·자격 증명·도구 설치·CI 변경은 하지 않는다. Oracle이 새 후보를 커밋한 뒤 기존 GitHub Actions에서 새 전체 SHA와 `source-sha.txt`·`pleos-build-<full SHA>` 일치, 테스트·빌드 성공과 기존·신규 XML(차폭·좌표·제외 회귀 포함)의 실패·오류·건너뜀 모두 0을 확인해야 한다. Gradle 로그·입력 해시·unsigned APK, README의 두 sha256sum 검사 및 기존 APK 패키지·ZIP·unsigned 검사도 대기다. 기준 `bcb60a1176d1a1f9617b89cf8f8370c1233f68d6` 대비 새 HEAD 전체 diff·`git diff --check`·지정 5개 editPaths 제한을 확인해야 하며 기준 후보 성공으로 대체하지 않는다.
 
 Windows 설치·화면·실제 SDK 콜백·차량 신호·실차·음성·음향 증거는 없다. 합성 검증 설계·unsigned CI·실제 런타임·제출 완료는 별도 단계다. 1차 필수 제안서·서명 동의서, 선택 프로토타입·적격 GitHub/APK, 최종 PT 필수 작동 앱 시연의 구분을 유지하며 제출·시연 완료를 주장하지 않는다.
 
@@ -485,7 +494,7 @@ Windows 설치·화면·실제 SDK 콜백·차량 신호·실차·음성·음향
 
 MainActivity는 변경하지 않는다. 차량값·출처는 상세 배치, 대안 이유는 최대 한 줄을 유지한다. 신규 테스트는 기존 `app/src/test` JUnit 대상이며 `testPleosDebugUnitTest`에 포함된다. 기존 `ParkingNavigationTest`의 방문·실패·되울림 계약도 함께 검증해야 한다.
 
-로컬 환경 확인(2026-11-09): Java·javac·Gradle 실행 경로와 Android SDK 환경 설정을 찾지 못해 설치 없이 소스 대조·diff 검사만 수행한다. 테스트 assertion은 실행 성공 증거가 아니다. 커밋·네트워크 작업은 수행하지 않으므로 새 전체 SHA 및 새 후보 Actions 증거는 대기다. 후속 새 커밋의 `testPleosDebugUnitTest`·`assemblePleosDebug` 성공, 기존·신규 XML의 실패·오류·건너뜀 모두 0, `gradle.log`, `source-sha.txt`와 `pleos-build-<full SHA>` 일치, 입력·APK 해시의 README 두 `sha256sum -c`, 기존 APK 패키지·ZIP·unsigned 검사를 확인해야 한다. 기준 성공으로 대체하지 않는다. 기준 `1e58b24f57548c5003b89e76f21e1a2415802245` 대비 작업 트리의 전체 diff·공백·지정 네 editPaths를 검사하며, 최종 `git diff --check 1e58b24f57548c5003b89e76f21e1a2415802245 HEAD`와 같은 범위 파일 검사는 새 커밋 이후 대기다.
+**작성 당시 기록(아래 대기·미실행·새 커밋 없음 및 경로 제한은 해당 기능 작성 시점에 한정).** 현행 기준 후보의 보고된 실행 결과와 이후 변경의 검증 요구는 [후보별 검증 상태](#후보별-검증-상태)를 따른다. 로컬 환경 확인(2026-11-09): Java·javac·Gradle 실행 경로와 Android SDK 환경 설정을 찾지 못해 설치 없이 소스 대조·diff 검사만 수행한다. 테스트 assertion은 실행 성공 증거가 아니다. 커밋·네트워크 작업은 수행하지 않으므로 새 전체 SHA 및 새 후보 Actions 증거는 대기다. 후속 새 커밋의 `testPleosDebugUnitTest`·`assemblePleosDebug` 성공, 기존·신규 XML의 실패·오류·건너뜀 모두 0, `gradle.log`, `source-sha.txt`와 `pleos-build-<full SHA>` 일치, 입력·APK 해시의 README 두 `sha256sum -c`, 기존 APK 패키지·ZIP·unsigned 검사를 확인해야 한다. 기준 성공으로 대체하지 않는다. 기준 `1e58b24f57548c5003b89e76f21e1a2415802245` 대비 작업 트리의 전체 diff·공백·지정 네 editPaths를 검사하며, 최종 `git diff --check 1e58b24f57548c5003b89e76f21e1a2415802245 HEAD`와 같은 범위 파일 검사는 새 커밋 이후 대기다.
 
 Windows 설치·화면·실제 SDK 콜백·실차·음성·음향 관측 증거는 없다. 합성 계약 검증과 실제 런타임·제출 완료는 별도다. 기존 제출 단계 표의 **1차 필수 제안서·서명 동의서**, **선택 프로토타입·적격 GitHub/APK**, **최종 PT 필수 작동 앱 시연** 구분을 유지하며 이번 변경으로 제출·시연 완료를 주장하지 않는다.
 
@@ -505,7 +514,7 @@ Windows 설치·화면·실제 SDK 콜백·실차·음성·음향 관측 증거�
 
 상세는 원본 차량값·출처, 사용자 확인값·출처, 적용값을 구분하고 첫 화면의 대안 이유는 최대 한 줄을 유지한다. 복귀·재조회·계산·설명·확인 모델 생성까지 fake 요청은 0건이며 새 대안 A 확인만 원래 방문지와 시연 입구 37.51400, 127.06100으로 1건 요청한다. 중복 확인은 추가 요청하지 않는다. REJECTED·예외는 실패이고 SIMULATED는 시연 처리다. 이전 읽기 결과·타이머는 새 상태를 바꾸지 않는다. 반복 복귀·이전 토큰 거부·명시적 삭제·새 객체 초기화는 `VehicleHeightTest`에서 별도로 검사한다. 기존 `OptionGenerationTest`·`ParkingNavigationTest`도 새 후보 CI 검증 대상이다.
 
-이번 작업 환경에는 PATH의 Java·Gradle과 Android SDK 설정이 없어 로컬 JVM 테스트·APK 빌드를 실행하지 못했다. 도구 설치·네트워크·커밋·푸시는 수행하지 않는다. 소스 assertion과 공백 검사는 실행 XML을 대신하지 않는다. 새 커밋이 만들어진 뒤 기존 GitHub Actions에서 `testPleosDebugUnitTest`·`assemblePleosDebug`, 전체 XML의 실패·오류·건너뜀 각 0건을 확인해야 한다. `source-sha.txt`와 `pleos-build-<full SHA>`의 새 전체 SHA 일치, README의 두 `sha256sum -c` 검사, APK 패키지·ZIP·unsigned 검사와 기준 `fc3bd6fe09c98370ec8e3d1aebc1c5169ce05a40` 대비 전체 diff·지정 다섯 파일 제한도 대기다. 기준 후보의 성공은 새 후보 성공 근거가 아니다.
+**작성 당시 기록(아래 대기·미실행·새 커밋 없음 및 경로 제한은 해당 기능 작성 시점에 한정).** 현행 기준 후보의 보고된 실행 결과와 이후 변경의 검증 요구는 [후보별 검증 상태](#후보별-검증-상태)를 따른다. 이번 작업 환경에는 PATH의 Java·Gradle과 Android SDK 설정이 없어 로컬 JVM 테스트·APK 빌드를 실행하지 못했다. 도구 설치·네트워크·커밋·푸시는 수행하지 않는다. 소스 assertion과 공백 검사는 실행 XML을 대신하지 않는다. 새 커밋이 만들어진 뒤 기존 GitHub Actions에서 `testPleosDebugUnitTest`·`assemblePleosDebug`, 전체 XML의 실패·오류·건너뜀 각 0건을 확인해야 한다. `source-sha.txt`와 `pleos-build-<full SHA>`의 새 전체 SHA 일치, README의 두 `sha256sum -c` 검사, APK 패키지·ZIP·unsigned 검사와 기준 `fc3bd6fe09c98370ec8e3d1aebc1c5169ce05a40` 대비 전체 diff·지정 다섯 파일 제한도 대기다. 기준 후보의 성공은 새 후보 성공 근거가 아니다.
 
 Windows 설치·화면·Activity 수명주기, 실제 SDK 콜백·차량 신호·실차·음성·음향 증거는 미확보다. 외부 사실은 기존 출처·확인일을 유지하며 이번에는 재확인하지 않았다. 1차 필수 제안서·서명 동의서, 선택 프로토타입·적격 GitHub/APK, 최종 PT 필수 작동 앱 시연은 별도 준비 대상이다.
 
@@ -526,7 +535,7 @@ Windows 설치·화면·Activity 수명주기, 실제 SDK 콜백·차량 신호�
 
 속성 읽기·계산·설명·확인 모델 생성까지 요청 0건이다. 1850→2250mm 갱신으로 이전 Option 선택과 Selection 확인을 차단하고 새 대안 A 확인만 원래 방문지 및 시연 좌표 37.51400, 127.06100으로 1건 요청한다. 중복 확인은 추가 요청하지 않으며 ACCEPTED·REJECTED·예외에 의한 REJECTED·SIMULATED를 구별한다. 차량값·출처의 상세 배치와 대안 이유 최대 한 줄은 유지하며 MainActivity 변경은 없다.
 
-이번 체크아웃에는 Java·Gradle이 PATH에 없어 JVM 테스트와 APK 빌드는 실행하지 못했다. 도구 설치·커밋·푸시·네트워크 호출은 하지 않았다. 신규 테스트는 실행 전 assertion이며 기존 성공 후보로 대체 증명하지 않는다. 새 후보 커밋의 GitHub Actions에서 `testPleosDebugUnitTest`·`assemblePleosDebug`, 신규 VehiclePropertyReaderTest 및 기존 VehicleProfileTest·VehicleWidthTest·VehicleReadResultTest를 포함한 전체 XML의 실패·오류·건너뜀 0건을 확인해야 한다. 새 전체 SHA와 `source-sha.txt`·`pleos-build-<full SHA>` 일치, Gradle 로그·입력 해시·unsigned APK, README의 두 sha256sum 검사와 기존 패키지·ZIP·unsigned 검사, 기준 `53aed5c98ca707b486f12e74289150cc4f6ae088` 대비 새 HEAD 전체 diff·공백 검사·다섯 editPaths 제한은 새 후보 CI 증거 대기다.
+**작성 당시 기록(아래 대기·미실행·새 커밋 없음 및 경로 제한은 해당 기능 작성 시점에 한정).** 현행 기준 후보의 보고된 실행 결과와 이후 변경의 검증 요구는 [후보별 검증 상태](#후보별-검증-상태)를 따른다. 이번 체크아웃에는 Java·Gradle이 PATH에 없어 JVM 테스트와 APK 빌드는 실행하지 못했다. 도구 설치·커밋·푸시·네트워크 호출은 하지 않았다. 신규 테스트는 실행 전 assertion이며 기존 성공 후보로 대체 증명하지 않는다. 새 후보 커밋의 GitHub Actions에서 `testPleosDebugUnitTest`·`assemblePleosDebug`, 신규 VehiclePropertyReaderTest 및 기존 VehicleProfileTest·VehicleWidthTest·VehicleReadResultTest를 포함한 전체 XML의 실패·오류·건너뜀 0건을 확인해야 한다. 새 전체 SHA와 `source-sha.txt`·`pleos-build-<full SHA>` 일치, Gradle 로그·입력 해시·unsigned APK, README의 두 sha256sum 검사와 기존 패키지·ZIP·unsigned 검사, 기준 `53aed5c98ca707b486f12e74289150cc4f6ae088` 대비 새 HEAD 전체 diff·공백 검사·다섯 editPaths 제한은 새 후보 CI 증거 대기다.
 
 외부 사실은 기존 출처·확인일을 유지하며 이번에는 재확인하지 않았다. Windows 설치·화면·실제 SDK 콜백·차량 신호·실차·음성·음향의 관측 증거는 없다. 합성 source 검증 설계, Android 매핑 소스 대조, CI 실행 증거, 실제 런타임 관측을 구별한다. 1차 필수 제안서·서명 동의서, 선택 프로토타입·적격 GitHub/APK, 최종 PT 필수 작동 앱 시연은 별도 준비 대상이며 제출·시연 완료를 주장하지 않는다.
 
@@ -547,7 +556,7 @@ Windows 설치·화면·Activity 수명주기, 실제 SDK 콜백·차량 신호�
 
 외부 시설 공개값·출처·확인일은 `SampleTrip`의 기존 **2026-11-08** 기록을 유지하며 이번에 외부 재확인은 하지 않았다. 조건 누락 복사본·차량 입력은 합성 검증, 대안 A와 좌표는 시연값, 할인은 구매 검증이 아닌 가정이다. 신규 테스트는 기존 `app/src/test` JUnit 대상이므로 `testPleosDebugUnitTest`에 포함된다. `TariffFallbackTest`·`ParkingNavigationTest`를 포함한 전체 XML은 새 후보 CI에서 확인해야 한다.
 
-이 체크아웃의 로컬 Java·Gradle·Android SDK 실행 환경은 확보되지 않아 테스트·APK 성공을 주장하지 않는다. 커밋·push·네트워크 실행은 이 작업 범위에서 금지되어 새 SHA의 GitHub Actions 검증은 대기다. 후속 새 커밋에서 기존 unsigned debug CI의 `testPleosDebugUnitTest`·`assemblePleosDebug`, 전체 XML 실패·오류·건너뜀 0, Gradle 로그·입력 해시·unsigned APK를 확인한다. `source-sha.txt`와 `pleos-build-<full SHA>`가 새 전체 SHA에 결합되어야 하며 README의 두 sha256sum 검사와 APK 패키지·ZIP·unsigned 검사, 기준 `acbe031b64ea7f0b82dc973459a06244373f646e` 대비 전체 diff·경로 범위를 대조한다. 기준 SHA 성공으로 대체하지 않는다. Windows 에뮬레이터·실차·실제 Pleos 런타임·Gleo 발화·음향 증거는 없다.
+**작성 당시 기록(아래 대기·미실행·새 커밋 없음 및 경로 제한은 해당 기능 작성 시점에 한정).** 현행 기준 후보의 보고된 실행 결과와 이후 변경의 검증 요구는 [후보별 검증 상태](#후보별-검증-상태)를 따른다. 이 체크아웃의 로컬 Java·Gradle·Android SDK 실행 환경은 확보되지 않아 테스트·APK 성공을 주장하지 않는다. 커밋·push·네트워크 실행은 이 작업 범위에서 금지되어 새 SHA의 GitHub Actions 검증은 대기다. 후속 새 커밋에서 기존 unsigned debug CI의 `testPleosDebugUnitTest`·`assemblePleosDebug`, 전체 XML 실패·오류·건너뜀 0, Gradle 로그·입력 해시·unsigned APK를 확인한다. `source-sha.txt`와 `pleos-build-<full SHA>`가 새 전체 SHA에 결합되어야 하며 README의 두 sha256sum 검사와 APK 패키지·ZIP·unsigned 검사, 기준 `acbe031b64ea7f0b82dc973459a06244373f646e` 대비 전체 diff·경로 범위를 대조한다. 기준 SHA 성공으로 대체하지 않는다. Windows 에뮬레이터·실차·실제 Pleos 런타임·Gleo 발화·음향 증거는 없다.
 
 제출 준비 구분은 유지한다. 1차 필수 제안서·서명 동의서, 선택 제출물, 최종 PT 작동 시연은 별도 준비·확인 대상이며 합성 assertion이나 unsigned debug CI가 실제 작동 시연을 대신하지 않는다.
 
@@ -569,13 +578,13 @@ Windows 설치·화면·Activity 수명주기, 실제 SDK 콜백·차량 신호�
 
 MainActivity는 변경하지 않는다. 기존 상세의 null 높이 표시는 ‘미확인’, 후보 행은 ‘확인 필요’를 사용한다. 차량값·출처는 상세에, 대안 이유는 최대 한 줄로 유지한다. 외부 공개값·출처·확인일은 SampleTrip의 기존 **2026-11-08** 기록을 유지하며 외부 재확인은 하지 않았다. 시설 오류 복사본·차량 입력은 합성, 대안·좌표는 시연값, 할인은 구매 검증이 아닌 가정이다.
 
-로컬 PATH에 Java·javac·Gradle이 없고 Android SDK 설정도 확인되지 않아 JVM 테스트·APK 빌드는 미실행이다. 소스 assertion 대조와 작업 트리 공백 검사는 실행 성공 증거가 아니다. 도구 설치·커밋·푸시·네트워크·자격 증명·CI 변경은 수행하지 않는다. Oracle에서 새 후보 커밋을 만든 뒤 기존 GitHub Actions의 `testPleosDebugUnitTest`·`assemblePleosDebug` 성공과 FacilityHeightTest·ParkingPlanTest·VehicleWidthTest·ParkingNavigationTest를 포함한 전체 XML의 실패·오류·건너뜀 각각 0을 확인해야 한다. 새 전체 SHA와 `source-sha.txt`·`pleos-build-<full SHA>` 일치, Gradle 로그·입력 해시·unsigned APK, README의 두 `sha256sum -c` 및 APK 패키지·ZIP·unsigned 검사는 대기다. 기준 `6103153261e1a9c5c746a45f5c4abe3245e62a22` 대비 새 HEAD 전체 diff·`git diff --check`·지정 네 editPaths 제한도 새 커밋에서 확인해야 한다. 기준 후보 성공으로 대체하지 않는다.
+**작성 당시 기록(아래 대기·미실행·새 커밋 없음 및 경로 제한은 해당 기능 작성 시점에 한정).** 현행 기준 후보의 보고된 실행 결과와 이후 변경의 검증 요구는 [후보별 검증 상태](#후보별-검증-상태)를 따른다. 로컬 PATH에 Java·javac·Gradle이 없고 Android SDK 설정도 확인되지 않아 JVM 테스트·APK 빌드는 미실행이다. 소스 assertion 대조와 작업 트리 공백 검사는 실행 성공 증거가 아니다. 도구 설치·커밋·푸시·네트워크·자격 증명·CI 변경은 수행하지 않는다. Oracle에서 새 후보 커밋을 만든 뒤 기존 GitHub Actions의 `testPleosDebugUnitTest`·`assemblePleosDebug` 성공과 FacilityHeightTest·ParkingPlanTest·VehicleWidthTest·ParkingNavigationTest를 포함한 전체 XML의 실패·오류·건너뜀 각각 0을 확인해야 한다. 새 전체 SHA와 `source-sha.txt`·`pleos-build-<full SHA>` 일치, Gradle 로그·입력 해시·unsigned APK, README의 두 `sha256sum -c` 및 APK 패키지·ZIP·unsigned 검사는 대기다. 기준 `6103153261e1a9c5c746a45f5c4abe3245e62a22` 대비 새 HEAD 전체 diff·`git diff --check`·지정 네 editPaths 제한도 새 커밋에서 확인해야 한다. 기준 후보 성공으로 대체하지 않는다.
 
 합성 검증 설계·unsigned CI·실제 런타임·제출 완료를 구분한다. Windows 에뮬레이터 설치·화면·실제 SDK 콜백·차량 신호·실차·Gleo 발화·음향 증거는 미확보다. 1차 필수 제안서·서명 동의서, 선택 프로토타입·적격 GitHub/APK, 최종 PT 필수 작동 앱 시연은 별도 준비·확인 대상이다.
 
 ## 복수 차량 조건 상세 — 현행 소스 대조 (2026-11-09)
 
-`CompoundFitTest`는 합성 `fromHardware` 입력부터 후보 계산·공통 상세 문자열·추천 설명·`EntranceConfirmation`·fake 내비를 연결한다. 아래는 실행 전 assertion 기대값이다. 실제 SDK 관측이나 화면에서 원본 차량값을 바꾼 기록이 아니다. 동일 방문, SampleTrip 목록, 120분·구매 할인 조건 충족 가정에서 두 추천 기준 모두 다음을 기대한다.
+`CompoundFitTest`는 합성 `fromHardware` 입력부터 후보 계산·공통 상세 문자열·추천 설명·`EntranceConfirmation`·fake 내비를 연결한다. 아래는 합성 assertion 기대값이다. 작성 당시 실행 전이었으며 현행 JVM 실행 근거는 후보별 검증 상태의 기준 후보 보고다. 실제 SDK 관측이나 화면에서 원본 차량값을 바꾼 기록이 아니다. 동일 방문, SampleTrip 목록, 120분·구매 할인 조건 충족 가정에서 두 추천 기준 모두 다음을 기대한다.
 
 | 합성 원본 차량 입력 | 코엑스 상세 차량 사유 / 종합 Fit | 추천·예상 요금 / 요청 가능 후보 |
 | --- | --- | --- |
@@ -587,8 +596,8 @@ MainActivity는 변경하지 않는다. 기존 상세의 null 높이 표시는 �
 
 향후 화면 리허설에서는 후보의 ‘상세’를 눌러 ‘차량 판정’의 ‘제한’과 ‘확인 필요’를 함께 읽고, 사용자 선택·입구 요청 상태를 별도로 확인한다(`MainActivity.showDetails`). 첫 화면에 차량값·출처·사유 목록은 추가하지 않는다. 이 조작은 원본 차량 신호 전환 UI가 아니다. 합성 검증에서는 계산·상세 생성·갱신·선택까지 요청 0건, 이전 선택 STALE, 1850mm·ELECTRIC의 새 대안 A를 명시적으로 확인할 때만 원래 방문지와 시연 좌표 37.51400, 127.06100으로 1건 요청한다. 중복 확인은 추가 요청하지 않는다.
 
-외부 사실은 SampleTrip의 기존 공식 출처·2026-11-08 확인일을 유지하며 이번에 재확인하지 않았다. 대안·좌표·차폭 및 차량 전환은 합성/시연값이다. 로컬 PATH에서 Java·javac·Gradle이 없고 Android SDK 환경 설정도 없어 테스트·APK 빌드는 미실행이다. 소스 assertion 대조·공백 검사는 실행 XML을 대신하지 않는다. 도구 설치·커밋·푸시·네트워크·자격 증명·CI 변경은 수행하지 않는다.
+**작성 당시 기록(아래 대기·미실행·새 커밋 없음 및 경로 제한은 해당 기능 작성 시점에 한정).** 현행 기준 후보의 보고된 실행 결과와 이후 변경의 검증 요구는 [후보별 검증 상태](#후보별-검증-상태)를 따른다. 외부 사실은 SampleTrip의 기존 공식 출처·2026-11-08 확인일을 유지하며 이번에 재확인하지 않았다. 대안·좌표·차폭 및 차량 전환은 합성/시연값이다. 로컬 PATH에서 Java·javac·Gradle이 없고 Android SDK 환경 설정도 없어 테스트·APK 빌드는 미실행이다. 소스 assertion 대조·공백 검사는 실행 XML을 대신하지 않는다. 도구 설치·커밋·푸시·네트워크·자격 증명·CI 변경은 수행하지 않는다.
 
-Oracle의 새 후보 커밋 후 기존 GitHub Actions 검증은 대기다. 새 전체 SHA와 `source-sha.txt`·`pleos-build-<full SHA>` 일치, `testPleosDebugUnitTest`·`assemblePleosDebug` 성공, CompoundFitTest·VehicleWidthTest·EntranceCoordinateTest·VisitExclusionTest·ParkingNavigationTest·RequestCompletionTest 포함 전체 XML 실패·오류·건너뜀 각각 0을 확인해야 한다. Gradle 로그·입력 해시·unsigned APK, README의 `sha256sum -c apk-sha256.txt` 및 `sha256sum -c /path/to/input-sha256.txt`, APK 패키지·ZIP·unsigned 검사도 대기다. 기준 `d4d3538ea1732ad93dcc8b89957dec607ab43c47` 대비 새 HEAD 전체 diff·`git diff --check`·지정 다섯 editPaths 제한은 새 커밋에서 확인해야 한다. 기준 후보 성공으로 대체하지 않는다.
+**작성 당시 기록(아래 대기·미실행·새 커밋 없음 및 경로 제한은 해당 기능 작성 시점에 한정).** 현행 기준 후보의 보고된 실행 결과와 이후 변경의 검증 요구는 [후보별 검증 상태](#후보별-검증-상태)를 따른다. Oracle의 새 후보 커밋 후 기존 GitHub Actions 검증은 대기다. 새 전체 SHA와 `source-sha.txt`·`pleos-build-<full SHA>` 일치, `testPleosDebugUnitTest`·`assemblePleosDebug` 성공, CompoundFitTest·VehicleWidthTest·EntranceCoordinateTest·VisitExclusionTest·ParkingNavigationTest·RequestCompletionTest 포함 전체 XML 실패·오류·건너뜀 각각 0을 확인해야 한다. Gradle 로그·입력 해시·unsigned APK, README의 `sha256sum -c apk-sha256.txt` 및 `sha256sum -c /path/to/input-sha256.txt`, APK 패키지·ZIP·unsigned 검사도 대기다. 기준 `d4d3538ea1732ad93dcc8b89957dec607ab43c47` 대비 새 HEAD 전체 diff·`git diff --check`·지정 다섯 editPaths 제한은 새 커밋에서 확인해야 한다. 기준 후보 성공으로 대체하지 않는다.
 
 Windows 설치·화면·실제 Pleos SDK 콜백·차량 신호·실차·Gleo 발화·음향 증거는 없다. 합성 검증 설계·unsigned CI·실제 런타임·제출 완료를 구분한다. 1차 필수 제안서·서명 동의서, 선택 프로토타입·적격 GitHub/APK, 최종 PT 필수 작동 앱 시연은 별도 준비 대상이다.
