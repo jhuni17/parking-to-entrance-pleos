@@ -37,7 +37,7 @@ Windows 설치·화면·실제 SDK 콜백·차량 신호·실차·음성·음향
 2. 조회 결과를 확인한다. 종료 후 **“차량 높이 확인 필요”**라면 입구 요청 불가다. 후보 행을 눌러 상세·요금 조건까지만 보고 요청 단계로 진행하지 않는다. 높이를 받았어도 요청 가능 후보가 없으면 “입구 안내 가능한 주차장 없음”으로 요청을 중단한다. 빈 시설 목록은 “시설 정보 없음”으로 구분한다. 후보 수 숫자는 화면에 표시되지 않는다(`refresh`).
 3. 추천 카드의 **“상세”** 또는 다른 후보 행을 누른다. 상세에서 입구 높이 제한·차량 높이·연료 유형·높이 출처·판정 사유·자료 출처를 읽는다. **“요금 조건”**에서 현재 값이 표시된 **체류 시간(분) 숫자 입력(정수 1~360)**, **“구매 할인 조건 충족 가정”**을 확인하고 **“적용”**으로 반영하거나 **“취소”**한다. 잘못된 입력은 오류를 표시하고 창과 기존 시간·할인을 유지하며 취소는 변경하지 않는다. 할인은 실제 영수증 검증이 아닌 가정이다(`showDetails/showQuoteSettings`).
 4. 요청 가능한 경우만 추천 카드의 **“입구 안내 ↗”** 또는 상세의 **“입구 안내”**를 누른다. **“이 입구로 안내할까요?”** 확인창에 원래 방문지·선택 주차장·입구·체류 분별 예상 요금·구매 할인 가정의 적용 범위와 “시연 경로 요청”이 나온다. 추천 카드와 시설 상세 모두 같은 `EntranceConfirmation`을 사용하며 표시한 모델의 Selection으로 확인한다. **“취소”**하면 요청하지 않는다. 다시 선택해 **“시연 요청”**을 누르면 선택한 입구로 한 번 요청하고 결과 **“시연 요청 완료”**를 기대한다. 조건이 바뀐 선택은 “조건이 바뀌었습니다. 입구를 다시 선택하세요.”로 처리한다(`confirmPreview`).
-5. 확인창이 닫힌 뒤 목록 밖 **입구 이름 · 결과 요약**을 누른다. **“마지막 요청”** 상세의 방문지·입구·좌표·결과를 확인하고 **“닫기”**를 누른다(`refresh/showReceipt/routeStatus`). 기록이 없으면 이 요약은 숨겨진다.
+5. 확인창이 닫힌 뒤 목록 밖 **입구 이름 · 결과 요약**을 누른다. **“마지막 요청”** 상세의 방문지·입구·좌표·결과를 확인하고 **“닫기”**를 누른다(`refresh/showReceipt/RequestRecheck`). 기록이 없으면 이 요약은 숨겨진다.
 
 해설: 실제 길안내 시작이 아니라 시연 어댑터 요청 처리다. 차량 조건별 예상 요금·순서는 아래 공통 표를 참고하며 해당 차량 신호가 실제 수신되었다고 가정하지 않는다. 후보 CI 보고와 Windows 화면 관측은 별개다. 제출 단계는 [제안서의 제출 단계와 요구 자료](../contest-brief.md#제출-단계와-요구-자료)를 따른다. 1차는 제안서·서명 동의서 필수, 적격 GitHub/APK·프로토타입 선택이며 최종 PT는 작동 앱 시연 필수다.
 
@@ -90,7 +90,7 @@ Windows 설치·화면·실제 SDK 콜백·차량 신호·실차·음성·음향
 | JVM 합성: 2250mm·NON_ELECTRIC·120분·할인 미적용 | 대안 A 6,000원 우선, 요청 가능 1건; 코엑스 높이 제한 초과로 요청 불가 | `VehicleProfileTest.hardwareHeightAndWidthOverrideCatalogAndTallVehicleUsesAlternative`, `VehicleReadResultTest.disconnectedThenSuccessAutomaticallyRecalculatesWithHardware`, `ParkingPlan.evaluate`, `SampleTrip.LOTS` |
 | JVM 합성: 1850mm·ELECTRIC·120분·할인 미적용 | 대안 A 6,000원 우선, 요청 가능 1건; 코엑스 전기차 정책 미확인으로 요청 불가(명시적 금지와 구별) | `VehicleProfileTest.electricAndAmbiguousFuelDoNotBypassUnknownEvPolicy`, `ParkingPlanTest.unknownEvPolicyAndEvBanAreDifferent`, `ParkingPlan.evaluate`, `SampleTrip.LOTS` |
 | JVM 합성: 입구 없는 무료 시설·입구 있는 유료 시설 / 모두 요청 불가 / 빈 목록 | 각각 입구 있는 시설 우선·1건 / 0건 / 0건; 후보 요약은 테스트 결과용 문구 | `ParkingPlanTest.entranceReadyLotPrecedesFreeLotWithoutEntrance`, `allUnavailableLotsHaveNoRequestableEntrance`, `emptyLotsHaveNoFacilityInformation` |
-| 현재 화면 조작: 가능한 입구 선택 → 취소 또는 “시연 요청” | 확인 전 요청 0건; 취소는 전송 없음. 확인 후 선택 좌표로 1회, “시연 요청 완료” | `MainActivity.confirmPreview/routeStatus`, `ParkingNavigationTest.confirmationAloneSendsExactlyOnceWithChosenCoordinates`, `SampleTrip.SimulatedNavigation` |
+| 현재 화면 조작: 가능한 입구 선택 → 취소 또는 “시연 요청” | 확인 전 요청 0건; 취소는 전송 없음. 확인 후 선택 좌표로 1회, “시연 요청 완료” | `MainActivity.confirmPreview`, `RequestRecheck.outcomeText`, `ParkingNavigationTest.confirmationAloneSendsExactlyOnceWithChosenCoordinates`, `SampleTrip.SimulatedNavigation` |
 | 향후 실제 AAOS 관측: 조회·재조회·재생성·요청 결과 | 실제 반환 높이·연료와 위 판단의 일치, 오래된 조회 배제, 기록 초기화 등을 관측해야 함. 현재 미관측 | `MainActivity.onStart/onStop/onSaveInstanceState`, `VehicleReadResultTest`의 세션 합성 검사; 실제 Handler·Activity·SDK 관측의 대체 증거 아님 |
 
 시설 공개값의 출처·확인일은 `SampleTrip.java`의 코엑스 공식 높이·요금·할인 안내(2026-11-08 확인)를 따른다. 이번에는 외부 재확인하지 않았다. 입구 좌표와 대안 A는 시연값이며 대안 B는 높이·입구 정보가 누락되어 요청할 수 없다. 합성 assertion 대조는 이번 HEAD의 테스트 실행 성공을 뜻하지 않는다.
@@ -99,7 +99,13 @@ Windows 설치·화면·실제 SDK 콜백·차량 신호·실차·음성·음향
 
 `MainActivity.refresh`는 요청 전에는 기록을 숨긴다. 확인 후에는 목록 밖에 **입구 이름 · 시연 요청 완료** 요약을 표시한다. 이 요약을 누르면 `showReceipt`의 **“마지막 요청”** 상세에서 방문지·입구·좌표·결과를 확인한다. 예를 들어 대안 A 요청은 스타필드 코엑스몰 / 대안 A 입구 (시연 좌표) / 37.51400, 127.06100 / 시연 요청 완료다. 코엑스 입구의 시연 좌표는 37.51200, 127.06000이다. 해설: 시연 어댑터 처리이며 실제 길안내 시작이 아니다. 이 해설은 화면 결과 문구가 아니다.
 
-일반 조건 갱신은 과거 기록을 유지한다. 새 방문지는 기록을 지우고 요청 ID가 연결된 입구 되울림은 원래 방문지와 기록을 유지한다. 근거는 `ParkingNavigationTest.simulatedAlternativeReceiptStartsEmptyAndSurvivesConditionChanges`, `echoesKeepReceiptAndNewVisitClearsIt`, `visitDuringRequestCannotReceiveOldOutcome`이다. 실패 결과는 `routeStatus`에서 “입구 경로 요청 실패”, 실제 수락 상태는 “내비 요청 수락”으로 구분한다. 현재 시연 어댑터는 SIMULATED만 반환하므로 실패·실제 수락의 화면 관측을 주장하지 않는다. 거절·예외의 계약 근거는 `rejectionReplacesPreviousReceiptAndDuplicateDoesNothing`, `exceptionReplacesPreviousReceiptAndDuplicateDoesNothing`이다.
+요청 후 현재 조건은 `RequestRecheck` 공유 모델로 별도 표시한다. 같은 Lot 객체의 현재 `requestAvailability`만 읽으며 요금·적합성을 다시 계산하거나 내비를 호출하지 않는다. 재확인이 필요하면 기존 요약 자리에 **이전 요청 · 입구 재확인 필요**를 표시하고, 실패 기록이면 **입구 경로 요청 실패**도 붙인다. 상세는 **당시 요청 결과**와 **현재 요청 가능 여부·현재 사유**, 현재 차량값·출처 및 시설 출처를 구분한다. 조회 중에는 **차량 정보 확인 중**으로 판단을 유보하고, 시설 누락은 미확인, 제외는 **이번 방문 제외**로 표시한다. `refresh`는 열린 요청 상세를 닫는다. 자동 재요청이나 경로 취소는 수행하지 않는다.
+
+요청 후 높이 변화 사례(소스·합성 검증 설계 대조, 2026-11-09): `RequestRecheckTest`는 합성 `fromHardware` 원본 차량값 1850mm·NON_ELECTRIC·120분·구매 할인 가정으로 코엑스 0원 입구를 확인한다(총 요청 1건). 원본 높이를 2250mm로 갱신하면 부설 우선·요금 우선 모두 이전 코엑스는 RESTRICTED·입구 재확인 필요이고 대안 A는 6,000원·요청 가능 1곳이다. 과거 ACCEPTED 또는 SIMULATED 결과는 그대로이며 대안 선택 모델 생성까지 총 요청은 1건이다. 새 대안 A를 명시적으로 확인한 뒤에만 원래 방문지 / 37.51400, 127.06100으로 두 번째 요청이 발생한다(1→2건). 중복 확인은 추가 요청하지 않는다. 높이 누락은 차량 높이 확인 필요, 1850mm·ELECTRIC은 전기차 입차 조건 확인 필요이며 명시적 입차 금지와 구별한다.
+
+향후 화면 리허설에서는 기존 **총높이 보완**으로 1850→2250mm 판단을 만들어 위 요약·상세·대안 확인 전후 요청 수를 관측할 예정이다. 이는 합성 테스트의 원본 차량값 갱신과 다른 조작이며 실제 SDK 높이 변경 관측이 아니다. 이번 변경의 로컬 Java·Gradle·Android SDK 실행 및 새 후보 unsigned debug CI 증거는 미확보다. 새 전체 SHA의 `testPleosDebugUnitTest` XML·Gradle 로그·입력 해시·unsigned APK는 기존 GitHub Actions에서 별도 확인해야 한다. 기준 후보의 성공을 이번 변경의 성공으로 대체하지 않는다. Windows 에뮬레이터·실차·실제 런타임은 미관측이며, 합성 검증과 unsigned debug CI는 1차 필수 제안서·서명 동의서 확보, 선택 제출물, 최종 PT 작동 앱 시연을 대체하지 않는다.
+
+일반 조건 갱신은 과거 기록을 유지한다. 새 방문지는 기록을 지우고 요청 ID가 연결된 입구 되울림은 원래 방문지와 기록을 유지한다. 근거는 `ParkingNavigationTest.simulatedAlternativeReceiptStartsEmptyAndSurvivesConditionChanges`, `echoesKeepReceiptAndNewVisitClearsIt`, `visitDuringRequestCannotReceiveOldOutcome`이다. 실패 결과는 공유 표시 모델 `RequestRecheck`에서 “입구 경로 요청 실패”, 실제 수락 상태는 “내비 요청 수락”으로 구분한다. 현재 시연 어댑터는 SIMULATED만 반환하므로 실패·실제 수락의 화면 관측을 주장하지 않는다. 거절·예외의 계약 근거는 `rejectionReplacesPreviousReceiptAndDuplicateDoesNothing`, `exceptionReplacesPreviousReceiptAndDuplicateDoesNothing`이다.
 
 Activity 재생성에서는 **체류 시간만 복원**한다. `onSaveInstanceState`가 체류 시간 키만 저장하고 `onCreate`가 읽어 새 `VisitQuoteState`를 만든다. 구매 할인은 저장하거나 과거 할인 키에서 읽지 않으며 미적용으로 시작한다. 차량은 `onStart`에서 다시 조회하며, 요청 기록·선택·확인창은 복원하지 않고 자동 재전송도 하지 않는다. 실제 Android 재생성은 미관측이며 소스 경로 대조만 수행했다.
 

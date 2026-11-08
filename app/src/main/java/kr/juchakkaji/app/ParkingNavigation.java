@@ -8,17 +8,28 @@ import java.util.Set;
 /** Owns visit lifetime; only confirm can cross the route-request boundary. */
 final class ParkingNavigation {
     enum Status { IDLE, SIMULATED, ACCEPTED, REJECTED, STALE }
-    record Receipt(ParkingPlan.RouteRequest request, Status outcome) {}
+    record Receipt(ParkingPlan.Lot lot, ParkingPlan.RouteRequest request, Status outcome) {
+        // Retain the existing request/outcome value contract for historical receipts.
+        // Facility membership is checked explicitly by identity, never Receipt.equals.
+        Receipt(ParkingPlan.RouteRequest request, Status outcome) { this(null, request, outcome); }
+        @Override public boolean equals(Object other) {
+            return other instanceof Receipt receipt
+                    && java.util.Objects.equals(request, receipt.request) && outcome == receipt.outcome;
+        }
+        @Override public int hashCode() { return java.util.Objects.hash(request, outcome); }
+    }
 
     static final class Selection {
         private final ParkingNavigation owner;
         private final long generation;
         private final ParkingPlan.RouteRequest request;
+        private final ParkingPlan.Lot lot;
         private boolean consumed;
-        private Selection(ParkingNavigation owner, long generation, ParkingPlan.RouteRequest request) {
+        private Selection(ParkingNavigation owner, long generation, ParkingPlan.Lot lot, ParkingPlan.RouteRequest request) {
             this.owner = owner;
             this.generation = generation;
             this.request = request;
+            this.lot = lot;
         }
         ParkingPlan.RouteRequest request() { return request; }
     }
@@ -88,7 +99,7 @@ final class ParkingNavigation {
     Optional<Selection> select(ParkingPlan.Option option) {
         if (!issuedOptions.contains(option)) return Optional.empty();
         if (!belongsToVisit(option.lot()) || excluded.contains(option.lot())) return Optional.empty();
-        return ParkingPlan.routeRequest(visit.name(), option).map(route -> new Selection(this, generation, route));
+        return ParkingPlan.routeRequest(visit.name(), option).map(route -> new Selection(this, generation, option.lot(), route));
     }
     Status confirm(Selection selection) {
         if (selection == null || selection.owner != this || selection.generation != generation || selection.consumed) return Status.STALE;
@@ -105,7 +116,7 @@ final class ParkingNavigation {
         Status outcome = result == NavigationPort.Result.ACCEPTED ? Status.ACCEPTED
                 : result == NavigationPort.Result.SIMULATED ? Status.SIMULATED : Status.REJECTED;
         if (generation == requestedGeneration) {
-            lastRequest = new Receipt(selection.request, outcome);
+            lastRequest = new Receipt(selection.lot, selection.request, outcome);
             status = outcome;
             changed.run();
         }

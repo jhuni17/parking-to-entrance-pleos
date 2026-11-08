@@ -209,8 +209,9 @@ public final class MainActivity extends Activity {
         ParkingNavigation.Receipt last = navigation.lastRequest();
         receipt.setVisibility(last == null ? View.GONE : View.VISIBLE);
         if (last != null) {
-            receipt.setText(last.request().entrance().label() + " · " + routeStatus(last.outcome()));
-            receipt.setOnClickListener(view -> showReceipt(last));
+            RequestRecheck recheck = RequestRecheck.create(last, vehicleState.reading(), options);
+            receipt.setText(recheck.summary());
+            receipt.setOnClickListener(view -> showReceipt(recheck, explanation.vehicleDetails()));
         } else {
             receipt.setOnClickListener(null);
         }
@@ -404,23 +405,16 @@ public final class MainActivity extends Activity {
                 }));
     }
 
-    private void showReceipt(ParkingNavigation.Receipt last) {
+    private void showReceipt(RequestRecheck recheck, String vehicleDetails) {
+        ParkingNavigation.Receipt last = recheck.receipt();
         Entrance entrance = last.request().entrance();
         String coordinates = String.format(Locale.KOREA, "%.5f, %.5f", entrance.latitude(), entrance.longitude());
-        show(dialog().setTitle("마지막 요청")
-                .setMessage(last.request().visit() + "\n" + entrance.label() + "\n" + coordinates
-                        + "\n" + routeStatus(last.outcome()))
+        detailsDialog = show(dialog().setTitle("마지막 요청")
+                .setMessage(last.request().visit() + "\n" + last.lot().name() + "\n" + entrance.label() + "\n" + coordinates
+                        + "\n당시 요청 결과: " + recheck.outcomeText()
+                        + "\n\n" + recheck.currentText() + "\n\n현재 차량값·출처\n" + vehicleDetails
+                        + "\n시설 출처\n" + last.lot().provenance())
                 .setPositiveButton("닫기", null));
-    }
-
-    private String routeStatus(ParkingNavigation.Status outcome) {
-        return switch (outcome) {
-            case SIMULATED -> "시연 요청 완료";
-            case ACCEPTED -> "내비 요청 수락";
-            case REJECTED -> "입구 경로 요청 실패";
-            case STALE -> "만료된 선택";
-            case IDLE -> "입구 요청 전";
-        };
     }
 
     private AlertDialog.Builder dialog() {
