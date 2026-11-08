@@ -1,0 +1,68 @@
+name: Pleos build and unit tests
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pleos-build-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Prepare Android SDK
+        run: sdkmanager "platforms;android-35" "build-tools;34.0.0"
+      - name: Record checkout and input file hashes
+        shell: bash
+        run: |
+          mkdir -p evidence
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          printf '%s\n' "$SOURCE_SHA" > evidence/source-sha.txt
+          git ls-files -z | LC_ALL=C sort -z | xargs -0 sha256sum -- > evidence/input-sha256.txt
+      - name: Run JVM tests and build unsigned APK
+        shell: bash
+        run: |
+          gradle --no-daemon --console=plain :app:testPleosDebugUnitTest :app:assemblePleosDebug \
+            2>&1 | tee evidence/gradle.log
+      - name: Verify APK and assemble evidence
+        shell: bash
+        run: |
+          apk=app/build/outputs/apk/pleos/debug/app-pleos-debug-unsigned.apk
+          tools="$ANDROID_HOME/build-tools/34.0.0"
+          test -s "$apk"
+          unzip -t "$apk"
+          "$tools/aapt" dump badging "$apk" | grep "^package: name='kr.juchakkaji.app' "
+          if "$tools/apksigner" verify "$apk"; then
+            echo "Expected an unsigned APK" >&2
+            exit 1
+          fi
+          cp "$apk" evidence/
+          cp -R app/build/test-results/testPleosDebugUnitTest evidence/test-results
+          (cd evidence && sha256sum app-pleos-debug-unsigned.apk > apk-sha256.txt)
+      - name: Upload commit-bound build evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: pleos-build-${{ env.SOURCE_SHA }}
+          path: evidence/
+          if-no-files-found: error

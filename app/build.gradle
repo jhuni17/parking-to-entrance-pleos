@@ -1,0 +1,38 @@
+plugins {
+    id 'com.android.application' version '8.7.3'
+}
+
+android {
+    namespace 'kr.juchakkaji.app'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'kr.juchakkaji.app'
+        minSdk 28
+        targetSdk 34
+        versionCode 1
+        versionName '0.1.0'
+    }
+
+    flavorDimensions 'platform'
+    productFlavors {
+        pleos { dimension 'platform' }
+    }
+
+    buildTypes {
+        debug {
+            if (!providers.gradleProperty('signLocalDebug').isPresent()) {
+                signingConfig = null
+            }
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    testImplementation 'junit:junit:4.13.2'
+}
