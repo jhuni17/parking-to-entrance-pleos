@@ -14,6 +14,8 @@ import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
+import android.widget.EditText;
+import android.text.InputType;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -34,6 +36,7 @@ public final class MainActivity extends Activity {
     private ParkingNavigation navigation;
     private VehicleProfile vehicle = VehicleProfile.UNKNOWN;
     private int readGeneration;
+    private final VehicleHeight totalHeight = new VehicleHeight();
     private final Handler vehicleHandler = new Handler(Looper.getMainLooper());
     private final VehicleReadResult.Session vehicleSession = new VehicleReadResult.Session();
     private Runnable pendingVehicleRetry;
@@ -109,6 +112,7 @@ public final class MainActivity extends Activity {
     @Override
     protected void onStart() {
         super.onStart();
+        totalHeight.start();
         int generation = ++readGeneration;
         readingVehicle = true;
         vehicle = VehicleProfile.UNKNOWN;
@@ -144,6 +148,7 @@ public final class MainActivity extends Activity {
     }
 
     private void stopVehicleRead() {
+        totalHeight.stop();
         readGeneration++;
         vehicleSession.stop();
         vehicleHandler.removeCallbacksAndMessages(null);
@@ -178,11 +183,11 @@ public final class MainActivity extends Activity {
         }
         navigation.invalidateSelections();
         destination.setText(navigation.visit() == null ? "목적지 없음" : navigation.visit().name());
-        List<Option> options = navigation.options(vehicle.heightMm(), vehicle.drive(), stayMinutes, purchaseDiscount);
-        RecommendationExplanation explanation = RecommendationExplanation.create(vehicle, readingVehicle, options);
+        List<Option> options = navigation.options(totalHeight.effectiveMm(vehicle), vehicle.drive(), stayMinutes, purchaseDiscount);
+        RecommendationExplanation explanation = RecommendationExplanation.create(vehicle, totalHeight, readingVehicle, options);
         setStatus(readingVehicle ? "차량 정보 확인 중"
                 : options.isEmpty() ? "시설 정보 없음"
-                : vehicle.heightMm() == null ? "차량 높이 확인 필요"
+                : totalHeight.effectiveMm(vehicle) == null ? "차량 높이 확인 필요"
                 : requestableCount(options) == 0 ? "입구 안내 가능한 주차장 없음" : "");
         ParkingNavigation.Receipt last = navigation.lastRequest();
         receipt.setVisibility(last == null ? View.GONE : View.VISIBLE);
@@ -282,12 +287,47 @@ public final class MainActivity extends Activity {
         if (lot.tariff() != null && !lot.tariff().purchaseRule().isEmpty()) {
             text += "\n" + lot.tariff().purchaseRule();
         }
-        AlertDialog.Builder details = dialog().setTitle(lot.name()).setMessage(text)
+        LinearLayout body = column();
+        body.setPadding(dp(24), dp(8), dp(24), 0);
+        body.addView(label(text, 16, 400, ink));
+        body.addView(action("총높이 보완", false, this::showTotalHeight));
+        ScrollView scroll = new ScrollView(this);
+        scroll.addView(body);
+        AlertDialog.Builder details = dialog().setTitle(lot.name()).setView(scroll)
                 .setNegativeButton("닫기", null)
                 .setNeutralButton("요금 조건", (d, which) -> showQuoteSettings());
         navigation.select(option).ifPresent(selection ->
                 details.setPositiveButton("입구 안내", (d, which) -> confirmPreview(selection)));
         detailsDialog = show(details);
+    }
+
+    private void showTotalHeight() {
+        long session = totalHeight.session();
+        LinearLayout body = column();
+        body.setPadding(dp(24), dp(8), dp(24), 0);
+        body.addView(label("루프박스·적재물 포함 직접 확인한 총높이(mm)\n앱 내부 입력 정책: 정수 1000~4000mm", 16, 400, ink));
+        EditText input = new EditText(this);
+        input.setInputType(InputType.TYPE_CLASS_NUMBER);
+        if (totalHeight.confirmedMm() != null) input.setText(totalHeight.confirmedMm().toString());
+        body.addView(input);
+        AlertDialog alert = show(dialog().setTitle("총높이 보완").setView(body)
+                .setNegativeButton("취소", null)
+                .setNeutralButton("보완값 삭제", (d, which) -> {
+                    if (totalHeight.clear(session)) refresh();
+                })
+                .setPositiveButton("적용", null));
+        alert.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(view -> {
+            if (!totalHeight.isCurrent(session)) {
+                alert.dismiss();
+                return;
+            }
+            if (!totalHeight.apply(session, input.getText().toString())) {
+                input.setError("정수 1000~4000mm를 입력하세요 (앱 내부 입력 정책)");
+                return;
+            }
+            alert.dismiss();
+            refresh();
+        });
     }
 
     private void showQuoteSettings() {

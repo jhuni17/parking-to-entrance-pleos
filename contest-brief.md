@@ -101,7 +101,7 @@
 
 최초 시작은 **120분·구매 할인 미적용**이다. 차량은 `onStart`에서 UNKNOWN으로 초기화한 뒤 AAOS에서 다시 조회한다. 고정 차량 높이나 비전기차 기본값을 넣지 않는다. `ParkingPlan.compare`의 정렬은 요청 가능 여부 → Fit → 부설 우선 → 예상 요금 순이다. 입구 누락은 명시적 입차 금지가 아니라 “입구 정보 미확인”이다. `candidateSummary`의 후보 수·빈 목록 문구는 JVM 테스트 대상이며 현재 `MainActivity.refresh`는 이를 화면에 표시하지 않는다. 화면 상태는 조회 중 “차량 정보 확인 중”, 조회 종료 후 높이 누락이면 “차량 높이 확인 필요”, 높이는 있지만 요청 가능 0건이면 “입구 안내 가능한 주차장 없음”이다.
 
-아래 표는 두 문서에 동일하게 적용한다. 합성 행의 수치는 기존 입력·요금식·assertion을 대조한 계산 결과이며 화면의 후보 수 표시나 실제 차량 신호 관측을 뜻하지 않는다. 차량 조건을 바꾸는 수동 화면 조작은 없다.
+아래 표는 두 문서에 동일하게 적용한다. 합성 행의 수치는 기존 입력·요금식·assertion을 대조한 계산 결과이며 화면의 후보 수 표시나 실제 차량 신호 관측을 뜻하지 않는다. 원본 차량 속성·연료를 바꾸는 수동 조작은 없다. 현재는 상세에서 사용자 확인 총높이를 별도로 보완할 수 있다.
 
 | 구분·조건 | 기대 결과 | 기존 소스·테스트 근거 |
 | --- | --- | --- |
@@ -140,7 +140,7 @@ Activity 재생성에서는 **체류 시간과 구매 할인 두 값만 복원**
 
 첫 화면에서는 요청 가능한 대안이 추천될 때만 부설 후보가 제외된 이유 한 줄을 추가한다. 정상 부설 추천에는 추가 설명을 넣지 않는다. 추천 카드 또는 후보 행의 **상세**에서 차량 높이(mm)·연료 유형·높이 출처와 해당 시설의 제한 높이(m·mm), 판정 사유를 확인한다. 높이가 하드웨어에서 왔으면 **차량 속성값**, 정확한 모델·연식의 보완값이면 **제조사 기본 제원**과 제원 URL을 표시한다. 조회 중에는 카드를 비우고 열린 상세도 닫아 이전 높이·추천 이유를 지운다. 목적지 변경도 목록과 설명을 새 결과로 교체하고 열린 상세를 닫는다. 빈 목록은 **시설 정보 없음**으로 구별한다.
 
-아래는 `RecommendationExplanationTest`의 합성 입력 → 기존 판정 → 설명 assertion과 대조한 향후 리허설 기대값이다. 수동 차량 입력 화면이나 실제 차량 관측을 뜻하지 않는다. 모든 요금은 120분·할인 미적용이다.
+아래는 `RecommendationExplanationTest`의 합성 입력 → 기존 판정 → 설명 assertion과 대조한 향후 리허설 기대값이다. 원본 차량 속성 입력이나 실제 차량 관측을 뜻하지 않는다. 총높이 보완은 별도 사용자 확인값이다. 모든 요금은 120분·할인 미적용이다.
 
 | 합성 입력 | 첫 화면과 상세 확인 절차 | 테스트 메서드 |
 | --- | --- | --- |
@@ -155,8 +155,31 @@ Activity 재생성에서는 **체류 시간과 구매 할인 두 값만 복원**
 
 외부 제원·시설값 출처와 확인일은 기존 README 및 `VehicleProfile.CATALOG_SOURCE`, `SampleTrip`의 2026-11-08 확인 기록을 따른다. 이번에는 네트워크 재확인을 하지 않았다. 대안 A와 입구 좌표는 시연값이다. 1차는 **제안서·서명 동의서 필수**, 적격 GitHub/APK·프로토타입 선택이며, 최종 PT는 **작동 앱 시연 필수**라는 구분을 유지한다.
 
-이번 로컬 환경에는 PATH의 Java·javac·Gradle이 없어 JVM 테스트와 unsigned APK 빌드를 실행하지 못했다. 도구 설치·커밋·푸시·CI 호출은 하지 않았다. `git diff --check`와 승인된 다섯 경로 제한 검사를 수행하며, 이 검사는 테스트 실행 성공을 뜻하지 않는다. 위 신규 테스트와 기존 `ParkingNavigationTest` 등의 XML은 아직 확보하지 못했다.
+이번 로컬 환경에는 PATH의 Java·javac·Gradle이 없어 JVM 테스트와 unsigned APK 빌드를 실행하지 못했다. 도구 설치·커밋·푸시·CI 호출은 하지 않았다. `git diff --check`와 지정 editPaths 제한 검사를 수행하며, 이 검사는 테스트 실행 성공을 뜻하지 않는다. 위 신규 테스트와 기존 `ParkingNavigationTest` 등의 XML은 아직 확보하지 못했다.
 
 후속 구현에서 Oracle이 만든 **새 후보 전체 SHA**에 대한 기존 GitHub Actions 결과를 확인해야 한다. `pleos-build-<full SHA>` 이름과 `source-sha.txt`를 대조하고, 동일 SHA 체크아웃에서 README의 `sha256sum -c /path/to/input-sha256.txt`, 아티팩트 폴더에서 `sha256sum -c apk-sha256.txt`를 확인한다. `gradle.log`의 `testPleosDebugUnitTest`·unsigned `assemblePleosDebug` 성공, 기존·신규 테스트 XML의 실패·오류·건너뜀 모두 0, 워크플로 APK 패키지·ZIP·unsigned 검사 성공을 확인할 때까지 실행 수용 항목 8은 대기다. 기준 SHA나 과거 성공 보고로 대체하지 않는다.
 
 Windows 설치·화면·재생성, 실제 SDK 콜백·차량 신호, 실차·음성·음향·공개 배포 증거는 없다. 별도 승인된 환경에서 위 기대값과 실제 화면·신호를 대조해야 한다.
+
+
+## 총높이 보완 — 현행 절차 (소스 대조일 2026-11-09)
+
+원본 높이·연료는 AAOS 조회 대상이며 수정하지 않는다. 시설 **상세 → 총높이 보완**에서 **루프박스·적재물 포함 직접 확인한 총높이(mm)**를 입력한다. 정수 1000~4000mm는 앱 내부 입력 정책이며 차량 제원이나 입차 안전 기준이 아니다. 적용은 원본 높이와 사용자 확인값 중 큰 값을 판단에 사용한다. 원본이 없으면 확인값을 사용하고 둘 다 없으면 미확인이다. 취소·잘못된 입력은 기존 보완값을 유지하며 **보완값 삭제**는 원본 높이 판단으로 돌아간다. 자동 장착물 감지는 구현하지 않았다.
+
+아래 수치는 `VehicleHeightTest`의 합성 AAOS 입력과 사용자 확인값이다. 실제 Pleos 수신·Windows 화면 관측이나 입차 안전 보증을 뜻하지 않는다. 요금 조건은 120분·구매 할인 미적용이다.
+
+| 조작 / 합성 조건 | 기대 결과 및 assertion 근거 |
+| --- | --- |
+| 하드웨어 1850mm·NON_ELECTRIC → 상세에서 확인 총높이 2250mm 적용 | 코엑스 12,000원 우선 → 대안 A 6,000원 우선. 코엑스 RESTRICTED·요청 불가. 원본 1850mm 보존 (`hardwareSupplementFlowsThroughExplanationAndConfirmedNavigation`) |
+| 높이·연료 누락 → 확인 총높이 1850mm 적용 → 보완값 삭제 | 요청 가능 0→1→0건. 보완 후 대안 A만 가능, 코엑스는 연료 확인 필요. 비전기차로 표시하지 않음 (`missingHeightRecoveryDeletionAndBoundaryPreserveUnknownFuel`) |
+| 총높이 2200mm·NON_ELECTRIC | 코엑스 경계값 NEEDS_CHECK, 요청 불가 (같은 테스트) |
+| 정확한 HYUNDAI·IONIQ 5 N·2025 제원 1585mm → 확인 총높이 2250mm | 판단 2250mm, 원본 제조사 출처·URL과 사용자 직접 확인값을 별도 표시. 하드웨어 2400mm이면 사용자 2250mm보다 큰 2400mm 적용 (`catalogAndHigherHardwareKeepTheirOriginalSources`) |
+| 1000·4000 입력 / 빈값·0·음수·999·4001·소수·문자·정수 초과 입력 / 취소 | 경계 허용 / 미적용 / 기존값 유지 (`inputPolicyInvalidAndCancelledInputDoNotMutateAndSessionsExpire`, 적용·취소 리스너) |
+| 보완 후 화면 종료 → 새 onStart | 보완값 삭제 후 차량 재조회. 이전 세션 입력창 적용·삭제 차단. Bundle은 체류 시간·할인만 저장하며 보완값 복원 없음 (같은 세션 테스트와 MainActivity 수명주기 대조) |
+| 적용·설명 갱신 → 이전 선택 확인 → 새 대안 A 선택 확인 | 갱신 자체 요청 0건, 이전 선택 STALE. 새 선택 확인만 원래 방문지와 37.51400, 127.06100으로 1건. 중복 확인 추가 요청 없음. fake REJECTED는 실패로 기록 (`hardwareSupplementFlowsThroughExplanationAndConfirmedNavigation`) |
+
+원본 높이·기존 출처, 사용자 확인 총높이, 판단 적용 높이는 상세에만 구분한다. 첫 화면은 기존 대안 이유 최대 한 줄을 유지한다. 삭제·적용은 refresh에서 후보·설명을 함께 갱신하고 선택을 만료시킨다. 새 테스트는 기존과 같은 `app/src/test/java`에 있어 `testPleosDebugUnitTest` 대상이다. 위 assertion 및 소스 경로 대조는 실행 통과 증거가 아니다.
+
+이번 작업 환경 PATH에 Java·javac·Gradle이 없어 테스트·unsigned APK 빌드는 실행하지 못했다. 도구 설치·네트워크·CI 호출·커밋·푸시는 수행하지 않았다. 새 후보 SHA와 CI 아티팩트가 제공되지 않아 수용 항목 8은 대기다. Oracle의 새 커밋 후 GitHub Actions에서 `testPleosDebugUnitTest`·`assemblePleosDebug`, 신규 VehicleHeightTest 및 기존 ParkingNavigationTest 등 XML 실패·오류·건너뜀 0을 확인해야 한다. `source-sha.txt`와 `pleos-build-<full SHA>`가 새 전체 SHA와 일치해야 하며 README의 두 sha256sum 검사, 입력·APK 해시, Gradle 로그, APK 패키지·ZIP·unsigned 검사를 확인한다. 기준 후보 성공으로 대체하지 않는다. 커밋 후 `git diff --check 1cbfb84534174c5d459131be2c52581939d66cc7 HEAD` 및 같은 범위의 지정 6개 경로 제한도 확인해야 한다.
+
+1차 제안서·서명 동의서 필수와 최종 PT 작동 앱 시연 필수 구분을 유지한다. 외부 자료는 기존 출처·확인일을 따르며 이번에는 재확인하지 않았다. Windows 설치·화면·수명주기, 실제 SDK 콜백·차량 신호·실차·음성·음향 증거는 미확보다.

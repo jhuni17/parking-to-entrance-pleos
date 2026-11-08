@@ -6,6 +6,11 @@ import java.util.List;
 record RecommendationExplanation(String headline, String vehicleDetails, String candidateSummary) {
     static RecommendationExplanation create(VehicleProfile vehicle, boolean reading,
                                              List<ParkingPlan.Option> options) {
+        return create(vehicle, new VehicleHeight(), reading, options);
+    }
+
+    static RecommendationExplanation create(VehicleProfile vehicle, VehicleHeight heightInput,
+                                             boolean reading, List<ParkingPlan.Option> options) {
         if (reading) return new RecommendationExplanation("", "차량 정보 확인 중", "차량 정보 확인 중");
         String height = vehicle.heightMm() == null ? "확인 필요"
                 : vehicle.heightMm() + "mm · "
@@ -17,6 +22,10 @@ record RecommendationExplanation(String headline, String vehicleDetails, String 
         };
         String details = "차량 높이 " + height + "\n연료 유형 " + fuel;
         if (vehicle.catalogHeight()) details += "\n높이 출처 " + VehicleProfile.CATALOG_SOURCE;
+        details += "\n사용자 확인 총높이 " + (heightInput.confirmedMm() == null
+                ? "미입력" : heightInput.confirmedMm() + "mm · 사용자 직접 확인값")
+                + "\n판단 적용 높이 " + (heightInput.effectiveMm(vehicle) == null
+                ? "미확인" : heightInput.effectiveMm(vehicle) + "mm");
         String headline = "";
         if (!options.isEmpty() && options.get(0).requestAvailability().available()
                 && !options.get(0).lot().attached()) {
