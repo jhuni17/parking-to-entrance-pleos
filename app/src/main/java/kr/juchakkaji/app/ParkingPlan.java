@@ -80,6 +80,8 @@ final class ParkingPlan {
     record Lot(String name, String type, boolean attached, Integer heightLimitMm,
                EvEntry evEntry, Tariff tariff, Entrance entrance, String provenance, WidthCondition widthCondition) {
         Lot {
+            // Nonpositive facility heights are missing data, not explicit entry limits.
+            heightLimitMm = heightLimitMm != null && heightLimitMm <= 0 ? null : heightLimitMm;
             // Missing facility policy is uncertainty, never permission to enter.
             evEntry = evEntry == null ? EvEntry.UNKNOWN : evEntry;
         }

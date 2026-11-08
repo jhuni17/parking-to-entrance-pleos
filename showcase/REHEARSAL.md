@@ -444,3 +444,25 @@ Windows 설치·화면·Activity 수명주기, 실제 SDK 콜백·차량 신호�
 이 체크아웃의 로컬 Java·Gradle·Android SDK 실행 환경은 확보되지 않아 테스트·APK 성공을 주장하지 않는다. 커밋·push·네트워크 실행은 이 작업 범위에서 금지되어 새 SHA의 GitHub Actions 검증은 대기다. 후속 새 커밋에서 기존 unsigned debug CI의 `testPleosDebugUnitTest`·`assemblePleosDebug`, 전체 XML 실패·오류·건너뜀 0, Gradle 로그·입력 해시·unsigned APK를 확인한다. `source-sha.txt`와 `pleos-build-<full SHA>`가 새 전체 SHA에 결합되어야 하며 README의 두 sha256sum 검사와 APK 패키지·ZIP·unsigned 검사, 기준 `acbe031b64ea7f0b82dc973459a06244373f646e` 대비 전체 diff·경로 범위를 대조한다. 기준 SHA 성공으로 대체하지 않는다. Windows 에뮬레이터·실차·실제 Pleos 런타임·Gleo 발화·음향 증거는 없다.
 
 제출 준비 구분은 유지한다. 1차 필수 제안서·서명 동의서, 선택 제출물, 최종 PT 작동 시연은 별도 준비·확인 대상이며 합성 assertion이나 unsigned debug CI가 실제 작동 시연을 대신하지 않는다.
+
+
+## 시설 높이 오류의 미확인 처리 (2026-11-09 소스 대조)
+
+`FacilityHeightTest`의 합성 assertion 기대값이다. 실제 코엑스 제한 변경, 오류 주입 UI 또는 SDK 실행 관측이 아니다. `Lot`의 두 생성자는 공통 생성 경계에서 시설 높이 null·0·-1·Integer.MIN_VALUE를 null로 저장한다. 양수 1·2200·2500·Integer.MAX_VALUE는 그대로 보존하며 단위 추정·임의 상한은 없다. 요금·입구·전기차 정책·차폭 조건·출처는 보존한다.
+
+합성 `VehicleProfile.fromHardware`부터 실제 후보 계산의 evaluate·requestAvailability, 추천 설명, EntranceConfirmation과 fake 내비를 연결한다. 공통 조건은 120분·구매 할인 조건 충족 가정·제외 없음이며 부설 우선과 요금 우선 모두 검사한다.
+
+| 합성 시설·차량 입력 | 판정·금액·사용자 결과 |
+| --- | --- |
+| 코엑스 복사본 높이만 null·0·-1·Integer.MIN_VALUE, 차량 1850mm·NON_ELECTRIC | 코엑스 NEEDS_CHECK·요청 불가, 기본 12,000원·예상 0원 유지. 대안 A 6,000원 우선·요청 가능 1곳. 이유는 ‘코엑스 지하주차장 · 높이 여유 또는 제한 정보 확인 필요’이며 높이 초과로 표시하지 않음 |
+| 정상 시설 높이 2200mm, 차량 1850 / 2200 / 2250mm | 각각 MATCHES_RECORDED_RULES / NEEDS_CHECK / RESTRICTED. 경계와 실제 높이 초과 판정 유지 |
+| 잘못된 시설 높이 + 별도 명시적 전기차 제한 / 최대 허용 차폭 1980mm에 차량 1990mm | 각각 RESTRICTED·요청 불가. 높이 미확인이 다른 명시적 제한을 약화시키지 않음 |
+| 대안 A 높이만 0, 차량 1850→2250mm·NON_ELECTRIC | 요청 가능 후보 1→0곳. 코엑스는 등록 높이 초과로 RESTRICTED, 대안 A는 NEEDS_CHECK. 갱신 후 이전 선택 STALE, 새 후보 모두 선택 불가·요청 0건 |
+
+잘못된 코엑스 높이와 정상 대안 A의 계산·설명·확인 모델 생성까지 fake 요청은 0건이다. 대안 A 확인 문구는 120분 예상 6,000원이며 적용할 구매 할인 규칙이 없음을 유지한다. 명시적 확인만 원래 방문지 ‘스타필드 코엑스몰’과 시연 좌표 **37.51400, 127.06100**으로 정확히 1건 요청한다. 입구 되울림은 원래 방문지를 유지하고 중복 확인은 추가 요청하지 않는다. ACCEPTED, 거절·예외의 REJECTED, 시연 결과 SIMULATED를 구별한다.
+
+MainActivity는 변경하지 않는다. 기존 상세의 null 높이 표시는 ‘미확인’, 후보 행은 ‘확인 필요’를 사용한다. 차량값·출처는 상세에, 대안 이유는 최대 한 줄로 유지한다. 외부 공개값·출처·확인일은 SampleTrip의 기존 **2026-11-08** 기록을 유지하며 외부 재확인은 하지 않았다. 시설 오류 복사본·차량 입력은 합성, 대안·좌표는 시연값, 할인은 구매 검증이 아닌 가정이다.
+
+로컬 PATH에 Java·javac·Gradle이 없고 Android SDK 설정도 확인되지 않아 JVM 테스트·APK 빌드는 미실행이다. 소스 assertion 대조와 작업 트리 공백 검사는 실행 성공 증거가 아니다. 도구 설치·커밋·푸시·네트워크·자격 증명·CI 변경은 수행하지 않는다. Oracle에서 새 후보 커밋을 만든 뒤 기존 GitHub Actions의 `testPleosDebugUnitTest`·`assemblePleosDebug` 성공과 FacilityHeightTest·ParkingPlanTest·VehicleWidthTest·ParkingNavigationTest를 포함한 전체 XML의 실패·오류·건너뜀 각각 0을 확인해야 한다. 새 전체 SHA와 `source-sha.txt`·`pleos-build-<full SHA>` 일치, Gradle 로그·입력 해시·unsigned APK, README의 두 `sha256sum -c` 및 APK 패키지·ZIP·unsigned 검사는 대기다. 기준 `6103153261e1a9c5c746a45f5c4abe3245e62a22` 대비 새 HEAD 전체 diff·`git diff --check`·지정 네 editPaths 제한도 새 커밋에서 확인해야 한다. 기준 후보 성공으로 대체하지 않는다.
+
+합성 검증 설계·unsigned CI·실제 런타임·제출 완료를 구분한다. Windows 에뮬레이터 설치·화면·실제 SDK 콜백·차량 신호·실차·Gleo 발화·음향 증거는 미확보다. 1차 필수 제안서·서명 동의서, 선택 프로토타입·적격 GitHub/APK, 최종 PT 필수 작동 앱 시연은 별도 준비·확인 대상이다.
