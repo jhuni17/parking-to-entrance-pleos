@@ -233,8 +233,8 @@ public final class MainActivity extends Activity {
             top.addView(cost);
         }
 
-        if (!explanation.headline().isEmpty()) {
-            TextView reason = label(explanation.headline(), 14, 500, muted);
+        if (!explanation.cardHeadline().isEmpty()) {
+            TextView reason = label(explanation.cardHeadline(), 14, 500, muted);
             reason.setSingleLine(true);
             card.addView(reason);
         }

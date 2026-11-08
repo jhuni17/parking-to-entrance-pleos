@@ -167,4 +167,32 @@ public final class VehicleWidthTest {
         assertEquals("가상 부설 · 전달된 판정", RecommendationExplanation.create(vehicle(1990),
                 false, List.of(alternative, supplied)).headline());
     }
+    @Test public void fullExplanationPreservesCompoundBlocksWhileCardShowsOneReason() {
+        Option alternative = compare(List.of(lot(false, 2200)), 1850, 1990,
+                VehicleProfile.DriveType.NON_ELECTRIC, 120, false, Priority.ATTACHED_FIRST).get(0);
+        for (boolean electric : new boolean[]{false, true}) {
+            VehicleProfile vehicle = VehicleProfile.fromHardware("OTHER", "Synthetic", 2025,
+                    new Integer[]{1850, 0, 1990},
+                    new Integer[]{electric ? FuelType.ELECTRIC : FuelType.UNLEADED});
+            Lot missing = lot(true, new WidthCondition(2000, "합성"),
+                    electric ? 2200 : 1800, EvEntry.UNKNOWN, null);
+            Option blocked = compare(List.of(missing), vehicle.heightMm(), vehicle.widthMm(),
+                    vehicle.drive(), 120, false, Priority.ATTACHED_FIRST).get(0);
+            assertFalse(blocked.requestAvailability().available());
+            String firstReason = electric ? "전기차 입차 조건 미확인" : "높이 초과";
+            RecommendationExplanation explanation = RecommendationExplanation.create(vehicle,
+                    false, List.of(alternative, blocked));
+            assertEquals("가상 부설 · " + firstReason + " · 입구 정보 미확인", explanation.headline());
+            assertEquals("가상 부설 · " + firstReason, explanation.cardHeadline());
+            assertFalse(explanation.cardHeadline().contains("입구 정보 미확인"));
+            assertFalse(explanation.cardHeadline().contains("\n"));
+        }
+        RecommendationExplanation width = RecommendationExplanation.create(vehicle(2010), false,
+                compare(lots(), 1850, 2010, VehicleProfile.DriveType.NON_ELECTRIC,
+                        120, false, Priority.ATTACHED_FIRST));
+        assertEquals("가상 부설 · 최대 허용 차폭 초과", width.cardHeadline());
+        assertEquals(width.headline(), width.cardHeadline());
+        assertEquals("", RecommendationExplanation.create(vehicle(1990), false, List.of()).cardHeadline());
+    }
+
 }

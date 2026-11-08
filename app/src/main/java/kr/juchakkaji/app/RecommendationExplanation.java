@@ -4,6 +4,12 @@ import java.util.List;
 
 /** Presentation only: preserves the supplied order, fit and request contract. */
 record RecommendationExplanation(String headline, String vehicleDetails, String candidateSummary) {
+    /** The recommendation card shows the facility and one reason; headline keeps all reasons. */
+    String cardHeadline() {
+        String[] parts = headline.split(" · ", 3);
+        return parts.length < 3 ? headline : parts[0] + " · " + parts[1];
+    }
+
     static RecommendationExplanation create(VehicleProfile vehicle, boolean reading,
                                              List<ParkingPlan.Option> options) {
         return create(vehicle, new VehicleHeight(), reading, options);
@@ -49,7 +55,7 @@ record RecommendationExplanation(String headline, String vehicleDetails, String 
             for (ParkingPlan.Option option : options) {
                 if (!headline.isEmpty()) break;
                 if (option.lot().attached() && !option.requestAvailability().available()) {
-                    String reason = option.requestAvailability().reason().split(" · ", 2)[0]
+                    String reason = option.requestAvailability().reason()
                             .replace("표기 높이 제한 초과", "높이 초과")
                             .replace("전기차 입차 조건 확인 필요", "전기차 입차 조건 미확인");
                     headline = option.lot().name() + " · " + reason;
