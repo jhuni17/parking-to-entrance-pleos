@@ -218,3 +218,25 @@ Windows 설치·화면·재생성, 실제 SDK 콜백·차량 신호, 실차·음
 Windows 화면·Activity 재생성·실제 SDK 콜백·실차·음성·음향 관측 증거는 없다. 외부 사실은 기존 출처·확인일을 유지하며 외부 재확인은 하지 않았다. 1차 필수 제안서·서명 동의서, 선택 프로토타입·적격 GitHub/APK, 최종 PT 작동 시연의 제출 단계 구분을 유지하며 이 합성 사례는 제출·시연 완료를 뜻하지 않는다.
 
 로컬 정적 확인: 기준 SHA 대비 작업 트리 `git diff --check`와 미추적 신규 테스트를 포함한 정확한 7개 editPaths 제한 검사가 통과했다. MainActivity의 기본 필드·상세 전용 리스너·동일 기준/후보 전달·Bundle 미저장·`setSingleLine(true)`도 소스로 대조했다. 이 결과는 JVM assertion 실행이나 새 커밋 CI 성공을 뜻하지 않는다.
+
+
+### 입구 좌표 수치 검사 — coord-guard (소스 대조일 2026-11-09)
+
+`Entrance.hasValidCoordinates()`는 위도·경도 모두 `Double.isFinite`이며 위도 -90~90, 경도 -180~180의 포함 범위일 때만 참이다. 0과 경계값은 통과하며 보정하거나 서로 바꾸지 않는다. 이는 수치 유효성 검사이며 실제 입구 위치 확인이나 입차 안전 보증이 아니다. `Option.requestAvailability()`를 통해 정렬·요청 가능 후보 수·`routeRequest`·`ParkingNavigation.select`가 같은 판정을 사용한다. 좌표 오류는 Fit·요금을 바꾸지 않고 “입구 좌표 확인 필요”로 요청을 차단한다.
+
+아래는 `EntranceCoordinateTest`의 합성 AAOS 입력과 `SampleTrip` 시설 복사본에 대한 assertion 기대값이다. 실제 차량 수신값·SDK 관측이나 테스트 실행 통과 기록이 아니다. 시설은 좌표만 바꾸며 외부 시설 사실을 갱신하지 않는다.
+
+| 합성 조건 / 리허설 조작 | 기대 표시·요청 결과 |
+| --- | --- |
+| 1850mm·NON_ELECTRIC·120분·구매 할인 적용, 코엑스 위도만 NaN | 부설 우선·요금 우선 모두 대안 A 6,000원 첫 후보, 요청 가능 1곳. 코엑스 Fit은 MATCHES_RECORDED_RULES, 기본 12,000원·예상 0원 유지, routeRequest·select는 비어 있음 |
+| 위 조건의 추천 카드와 코엑스 상세 확인 | 첫 화면 이유 “코엑스 지하주차장 · 입구 좌표 확인 필요” 최대 한 줄. 입차 금지로 표현하지 않음. 기존 MainActivity의 `setSingleLine(true)` 경로를 사용하며 상세에는 차량값·출처와 requestAvailability 사유 유지 |
+| 높이 1850→2250mm 변경, 코엑스 좌표 정상·대안 A 경도 NaN | 요청 가능 1→0곳. 코엑스 RESTRICTED·“표기 높이 제한 초과”, 대안 A MATCHES_RECORDED_RULES·“입구 좌표 확인 필요”. “요청 가능한 입구 없음 · 요청 가능한 후보 0곳”; 모든 선택·경로 생성 차단 |
+| 높이 누락 / 1850mm·ELECTRIC / 정상 대안 A의 입구 누락 | 높이 누락 NEEDS_CHECK, 코엑스 전기차 조건 미확인 NEEDS_CHECK, 입구 누락은 Fit 유지·“입구 정보 미확인”. 각 합성 목록 요청 가능 0곳·선택 차단 |
+| 계산·설명·잘못된 좌표 선택 → 유효한 대안 A 새 선택 → 확인 | 확인 전 fake 요청 0건. 확인 후 원래 방문지 “스타필드 코엑스몰”과 37.51400, 127.06100으로 정확히 1건. 입구 되울림은 방문지 유지. REJECTED는 실패 receipt, 중복 확인 STALE·추가 요청 없음 |
+| 위도·경도 각각 NaN·±무한대·포함 범위 바로 밖 / 위도 ±90·경도 ±180·0 조합 | 오류 입력마다 요청 불가·선택 차단. 유효 경계 조합은 전달 좌표와 객체 그대로 유지 |
+
+테스트는 기존 `app/src/test/java`에 있어 `testPleosDebugUnitTest` 대상이다. 이번 환경 PATH에서 Java·javac·Gradle을 찾지 못해 JVM 테스트·unsigned APK 빌드는 실행하지 못했다. 도구 설치·네트워크·자격 증명·CI 호출·커밋·푸시는 하지 않았다. 로컬 `git diff --check`와 네 editPaths 제한을 확인하며 이는 JVM assertion 실행 증거가 아니다.
+
+Oracle의 새 후보 커밋 후 기존 GitHub Actions에서 `testPleosDebugUnitTest`·`assemblePleosDebug` 성공, 기존·신규 XML 실패·오류·건너뜀 모두 0을 확인해야 한다. 새 전체 SHA가 `source-sha.txt`와 `pleos-build-<full SHA>`에 일치하고 README의 두 `sha256sum` 검사, 입력 해시·APK 해시·Gradle 로그·APK 패키지·ZIP·unsigned 검사가 통과해야 한다. 기준 SHA 성공으로 대신하지 않는다. 새 커밋이 없으므로 해당 아티팩트는 미확보이며 수용 항목 7은 대기다. 커밋 후 `git diff --check 492be84715c2122cc00d04f42b4d4a9f3f3551d4 HEAD`와 같은 범위 네 파일 제한·전체 diff 검증도 대기다. 작업 트리 검사는 커밋 범위 검사를 대신하지 않는다.
+
+외부 출처·확인일은 기존 SampleTrip 및 README 기록을 유지하며 이번에는 외부 재확인을 하지 않았다. Windows 설치·화면·실제 SDK 콜백·실차·음성·음향·공개 배포 증거는 없다. 1차 필수 제안서·서명 동의서, 선택 프로토타입·적격 GitHub/APK, 최종 PT 필수 작동 앱 시연의 구분을 유지한다. 합성 검증·unsigned CI·실제 런타임 관측·제출 완료는 별도 단계다.

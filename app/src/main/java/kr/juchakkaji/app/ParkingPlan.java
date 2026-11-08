@@ -13,7 +13,14 @@ final class ParkingPlan {
     enum Fit { MATCHES_RECORDED_RULES, NEEDS_CHECK, RESTRICTED }
     enum EvEntry { ALLOWED, RESTRICTED, UNKNOWN }
 
-    record Entrance(String label, double latitude, double longitude) {}
+    record Entrance(String label, double latitude, double longitude) {
+        // Numeric validity only; this does not verify the physical entrance location.
+        boolean hasValidCoordinates() {
+            return Double.isFinite(latitude) && Double.isFinite(longitude)
+                    && latitude >= -90 && latitude <= 90
+                    && longitude >= -180 && longitude <= 180;
+        }
+    }
 
     record Tariff(int unitMinutes, int wonPerUnit, int purchaseFreeMinutes, String purchaseRule) {
         int quote(int stayMinutes, boolean qualifiesForPurchaseDiscount) {
@@ -30,12 +37,14 @@ final class ParkingPlan {
 
     record Option(Lot lot, Fit fit, String reason, Integer baseWon, Integer expectedWon) {
         RequestAvailability requestAvailability() {
+            String entranceIssue = lot.entrance() == null ? "입구 정보 미확인"
+                    : !lot.entrance().hasValidCoordinates() ? "입구 좌표 확인 필요" : "";
             if (fit != Fit.MATCHES_RECORDED_RULES) {
                 return new RequestAvailability(false, reason
-                        + (lot.entrance() == null ? " · 입구 정보 미확인" : ""));
+                        + (entranceIssue.isEmpty() ? "" : " · " + entranceIssue));
             }
-            if (lot.entrance() == null) {
-                return new RequestAvailability(false, "입구 정보 미확인");
+            if (!entranceIssue.isEmpty()) {
+                return new RequestAvailability(false, entranceIssue);
             }
             return new RequestAvailability(true, "입구 경로 요청 가능");
         }
