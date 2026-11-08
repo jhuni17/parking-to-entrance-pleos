@@ -266,7 +266,8 @@ public final class MainActivity extends Activity {
         actions.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
         actions.setPadding(0, dp(10), 0, 0);
         actions.addView(action("상세", false, () -> showDetails(option, explanation)));
-        Button guide = action("입구 안내 ↗", true, () -> navigation.select(option).ifPresent(this::confirmPreview));
+        Button guide = action("입구 안내 ↗", true, () -> EntranceConfirmation.create(navigation, option, quote.stayMinutes(), quote.purchaseDiscount())
+                .ifPresent(this::confirmPreview));
         LinearLayout.LayoutParams guideParams = new LinearLayout.LayoutParams(-2, -2);
         guideParams.setMarginStart(dp(8));
         actions.addView(guide, guideParams);
@@ -324,8 +325,8 @@ public final class MainActivity extends Activity {
         AlertDialog.Builder details = dialog().setTitle(lot.name()).setView(scroll)
                 .setNegativeButton("닫기", null)
                 .setNeutralButton("요금 조건", (d, which) -> showQuoteSettings());
-        navigation.select(option).ifPresent(selection ->
-                details.setPositiveButton("입구 안내", (d, which) -> confirmPreview(selection)));
+        EntranceConfirmation.create(navigation, option, quote.stayMinutes(), quote.purchaseDiscount()).ifPresent(preview ->
+                details.setPositiveButton("입구 안내", (d, which) -> confirmPreview(preview)));
         detailsDialog = show(details);
     }
 
@@ -382,12 +383,12 @@ public final class MainActivity extends Activity {
                 }));
     }
 
-    private void confirmPreview(ParkingNavigation.Selection selection) {
+    private void confirmPreview(EntranceConfirmation preview) {
         show(dialog().setTitle("이 입구로 안내할까요?")
-                .setMessage(selection.request().entrance().label() + "\n시연 경로 요청")
+                .setMessage(preview.message())
                 .setNegativeButton("취소", null)
                 .setPositiveButton("시연 요청", (d, which) -> {
-                    if (navigation.confirm(selection) == ParkingNavigation.Status.STALE) {
+                    if (navigation.confirm(preview.selection()) == ParkingNavigation.Status.STALE) {
                         setStatus("조건이 바뀌었습니다. 입구를 다시 선택하세요.");
                     }
                 }));
