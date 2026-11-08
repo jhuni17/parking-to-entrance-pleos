@@ -353,3 +353,26 @@ Windows 설치·화면·실제 SDK 콜백·실차·음성·음향·공개 배포
 로컬 PATH에 java·javac·gradle이 없고 알려진 Android SDK 경로도 없어 `testPleosDebugUnitTest`·`assemblePleosDebug`는 미실행이다. 신규 테스트는 기존 app/src/test/java 경로에 있어 해당 단위 테스트 대상이다. 소스 대조와 작업 트리 공백 검사는 실행 통과 증거가 아니다. 커밋·푸시·네트워크·자격 증명·도구 설치·CI 변경은 하지 않는다. Oracle이 새 후보를 커밋한 뒤 기존 GitHub Actions에서 새 전체 SHA와 `source-sha.txt`·`pleos-build-<full SHA>` 일치, 테스트·빌드 성공과 기존·신규 XML(차폭·좌표·제외 회귀 포함)의 실패·오류·건너뜀 모두 0을 확인해야 한다. Gradle 로그·입력 해시·unsigned APK, README의 두 sha256sum 검사 및 기존 APK 패키지·ZIP·unsigned 검사도 대기다. 기준 `bcb60a1176d1a1f9617b89cf8f8370c1233f68d6` 대비 새 HEAD 전체 diff·`git diff --check`·지정 5개 editPaths 제한을 확인해야 하며 기준 후보 성공으로 대체하지 않는다.
 
 Windows 설치·화면·실제 SDK 콜백·차량 신호·실차·음성·음향 증거는 없다. 합성 검증 설계·unsigned CI·실제 런타임·제출 완료는 별도 단계다. 1차 필수 제안서·서명 동의서, 선택 프로토타입·적격 GitHub/APK, 최종 PT 필수 작동 앱 시연의 구분을 유지하며 제출·시연 완료를 주장하지 않는다.
+
+
+## 후보 발급 세대와 재선택 차단 (option-epoch, 2026-11-09)
+
+`ParkingNavigation.options`의 모든 오버로드는 공통 발급 경계를 거친다. 현재 내비 인스턴스·generation에서 발급한 **Option 객체 동일성**을 보관하며 같은 세대의 반복 계산은 앞서 발급한 후보도 유지한다. 조건 갱신의 `invalidateSelections`, 새 방문, 제외·되돌리기는 발급 집합을 비운다. 이전 Selection의 확인은 STALE이고, 이전 Option으로 `select` 또는 `EntranceConfirmation.create`를 호출해 **새 확인을 만드는 것**도 거부한다. 이는 서로 다른 차단이다. equals가 같은 복제·다른 내비 발급·직접 compare 후보도 선택할 수 없다. 요청 ID가 연결된 동기·지연 입구 되울림은 조기 반환하여 원래 방문과 후보 세대를 유지한다.
+
+다음은 `OptionGenerationTest`의 합성 AAOS `VehicleProfile.fromHardware` → 후보 → 설명·확인 모델 → fake 내비 계약 사례다. 화면에서 과거 후보를 주입하는 사용자 조작이나 Android 화면 재현, 실제 차량 신호·SDK 콜백 관측을 뜻하지 않는다. 외부 시설 정보·출처·확인일과 시연 좌표는 기존 SampleTrip/README 기록을 유지하며 외부 재확인은 하지 않았다.
+
+| 합성 입력·전이 (120분·구매 할인 충족 가정) | assertion 기대값 |
+| --- | --- |
+| 1850mm·NON_ELECTRIC | 두 추천 기준 모두 코엑스 0원 우선·요청 가능 2곳. Option과 Selection 보관 |
+| invalidateSelections 직후, 새 목록 계산 전 | 이전 Option select·확인 모델 생성은 비어 있음, 이전 Selection 확인은 STALE, 요청 0건 |
+| 높이만 2250mm로 변경 | 두 기준 모두 코엑스 RESTRICTED·요청 불가, 대안 A 6,000원·요청 가능 1곳. 과거 코엑스 Option 재선택 불가 |
+| 1850mm·ELECTRIC / 높이 누락 | 코엑스 NEEDS_CHECK·요청 불가 / 전체 요청 가능 0곳. 과거 Option으로 우회 불가 |
+| 갱신 후 동일 값 재계산 / 같은 시설 객체의 새 방문 | equals상 같은 이전 객체는 거부, 새 발급 객체만 선택 가능. 같은 세대 반복 계산의 정상 후보는 모두 선택 가능 |
+| 2250mm 새 대안 계산·설명·확인 모델 생성 | 요청 0건. 명시적 확인 후 원래 방문지 ‘스타필드 코엑스몰’과 37.51400, 127.06100으로 정확히 1건. 중복 확인 STALE·추가 요청 없음 |
+| fake REJECTED·예외 / SIMULATED | 실패 / 시연 결과로 유지. 실제 내비 수락으로 표시하지 않음 |
+
+MainActivity는 변경하지 않는다. 차량값·출처는 상세 배치, 대안 이유는 최대 한 줄을 유지한다. 신규 테스트는 기존 `app/src/test` JUnit 대상이며 `testPleosDebugUnitTest`에 포함된다. 기존 `ParkingNavigationTest`의 방문·실패·되울림 계약도 함께 검증해야 한다.
+
+로컬 환경 확인(2026-11-09): Java·javac·Gradle 실행 경로와 Android SDK 환경 설정을 찾지 못해 설치 없이 소스 대조·diff 검사만 수행한다. 테스트 assertion은 실행 성공 증거가 아니다. 커밋·네트워크 작업은 수행하지 않으므로 새 전체 SHA 및 새 후보 Actions 증거는 대기다. 후속 새 커밋의 `testPleosDebugUnitTest`·`assemblePleosDebug` 성공, 기존·신규 XML의 실패·오류·건너뜀 모두 0, `gradle.log`, `source-sha.txt`와 `pleos-build-<full SHA>` 일치, 입력·APK 해시의 README 두 `sha256sum -c`, 기존 APK 패키지·ZIP·unsigned 검사를 확인해야 한다. 기준 성공으로 대체하지 않는다. 기준 `1e58b24f57548c5003b89e76f21e1a2415802245` 대비 작업 트리의 전체 diff·공백·지정 네 editPaths를 검사하며, 최종 `git diff --check 1e58b24f57548c5003b89e76f21e1a2415802245 HEAD`와 같은 범위 파일 검사는 새 커밋 이후 대기다.
+
+Windows 설치·화면·실제 SDK 콜백·실차·음성·음향 관측 증거는 없다. 합성 계약 검증과 실제 런타임·제출 완료는 별도다. 기존 제출 단계 표의 **1차 필수 제안서·서명 동의서**, **선택 프로토타입·적격 GitHub/APK**, **최종 PT 필수 작동 앱 시연** 구분을 유지하며 이번 변경으로 제출·시연 완료를 주장하지 않는다.
