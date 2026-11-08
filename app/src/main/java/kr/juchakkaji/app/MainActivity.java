@@ -300,6 +300,7 @@ public final class MainActivity extends Activity {
         Lot lot = option.lot();
         String text = lot.type() + "\n입구 높이 제한 " + meters(lot.heightLimitMm())
                 + " (" + (lot.heightLimitMm() == null ? "미확인" : lot.heightLimitMm() + "mm") + ")"
+                + "\n" + VehicleReadExplanation.details(vehicleState, totalHeight)
                 + "\n" + explanation.vehicleDetails()
                 + "\n" + lot.widthDetails()
                 + (vehicleState.vehicle().model().isEmpty() ? "" : "\n차량 " + vehicleState.vehicle().model())

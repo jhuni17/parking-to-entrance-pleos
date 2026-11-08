@@ -1,8 +1,22 @@
 # 주차까지 · 시연 리허설
 
-## 상세에서 차량 정보 다시 확인 (2026-11-09 소스 대조)
+## 상세에서 조회 종료 이유와 복구 확인 (2026-11-09 소스 대조)
 
-현행 절차: **최초 조회 종료(미확인 포함) → 시설 상세 → 차량 정보 다시 확인 → 새 결과에 따른 추천 갱신 → 상세에서 입구 선택·확인**. 조회 중에는 기존 ‘차량 정보 확인 중’ 표시와 카드 숨김을 사용한다. 차량값·출처는 상세에, 대안 이유는 최대 한 줄로 유지하며 원본 차량값 입력 UI는 없다. 상세 재조회는 Activity를 재시작하지 않는다. 같은 방문의 체류 시간·구매 할인 가정·추천 기준·사용자 제외·직접 확인 총높이를 유지한다. 같은 Activity의 stop→onStart 복귀는 확인 총높이를 유지하고 이전 입력창 토큰만 만료시킨다. 현재 토큰의 명시적 삭제는 보완값을 지우며 새 Activity는 미입력으로 시작한다. 새 방문은 할인·제외를 초기화하는 기존 정책을 유지한다.
+현행 절차: **시설 상세에서 조회 종료 이유 확인 → 명시적 차량 정보 다시 확인 또는 직접 확인한 총높이 보완 → 후보 재판정 → 요청 가능한 입구 선택·확인**. 조회 중에는 기존 ‘차량 정보 확인 중’ 표시와 카드 숨김을 사용한다. 차량값·출처는 상세에, 대안 이유는 최대 한 줄로 유지하며 원본 차량값 입력 UI는 없다. 상세 재조회는 Activity를 재시작하지 않는다. 같은 방문의 체류 시간·구매 할인 가정·추천 기준·사용자 제외·직접 확인 총높이를 유지한다. 같은 Activity의 stop→onStart 복귀는 확인 총높이를 유지하고 이전 입력창 토큰만 만료시킨다. 현재 토큰의 명시적 삭제는 보완값을 지우며 새 Activity는 미입력으로 시작한다. 새 방문은 할인·제외를 초기화하는 기존 정책을 유지한다.
+
+
+상세의 공유 `VehicleReadExplanation`은 첫 DISCONNECTED 뒤에는 진행 중을 유지하고, 두 번째 DISCONNECTED는 ‘차량 서비스 미연결’, UNAVAILABLE는 ‘차량 정보 읽기 불가’, CONNECTED는 ‘차량 조회 응답 수신’, EXPIRE는 ‘차량 조회 대기 만료’로 구분한다. 응답 수신은 모든 속성 확보나 입차 허용을 뜻하지 않으며 영구 미지원·권한 부족을 단정하지 않는다. 새 조회가 이전 종료 이유를 교체한다. 화면 종료 중 진행 조회는 ‘진행 안 함’으로 바꾸며 실패나 만료를 만들어내지 않는다. 차량값·출처와 시설 제한 사유는 별도 항목이다. 적용 높이가 미확인이면 직접 확인한 총높이가 있을 때만 ‘총높이 보완’을 안내하고, 확인값이 없으면 요청을 보류한다. 보완값을 조회 성공으로 표시하지 않는다.
+
+`VehicleReadExplanationTest`의 신규 합성 assertion(실행 미확인)은 기존 가짜 시계·Screen·속성 source부터 실제 상태·후보 계산·확인 모델을 연결한다. 2999ms 진행 중 / 3000ms 무응답 또는 마감 도착 결과 만료, 중복 만료·이전 결과·타이머 무시, stop→start, 500ms 재시도 최대 한 번을 검사한다. 아래는 시연/합성값이며 실제 화면 관측이 아니다.
+
+| 신규 종료·복구 사례 | assertion 기대값 |
+| --- | --- |
+| CONNECTED + 모든 속성 누락 | 응답 수신과 값 미확인 구분, 요청 가능 0곳 |
+| HYUNDAI·IONIQ 5 N·2025, 치수 누락·ELECTRIC 합성 source | 제조사 보완 1585mm·1940mm와 기존 출처 유지, 대안 A만 요청 가능 |
+| 120분·구매 할인 가정·보완 없음, 정상 1850mm·NON_ELECTRIC → 재조회 만료 → 재조회 2250mm·NON_ELECTRIC | 이전 선택 STALE·만료 때 0곳 → 응답 수신으로 교체, 두 추천 기준 모두 코엑스 RESTRICTED·대안 A 6,000원·1곳, 방문지·요금 조건 유지 |
+| 만료·원본 높이/연료 미확인·120분·할인 미적용 → 직접 확인 총높이 1850mm | 만료 기록 유지, 요청 가능 0→1곳·대안 A 6,000원, 설명·보완·선택까지 요청 0건, 명시적 확인만 원래 방문지·37.51400, 127.06100으로 1건 |
+
+향후 Windows 화면 리허설에서는 상세의 종료 이유와 두 기존 복구 버튼, 재조회 시 상세 닫기, 재판정 후 가능한 입구 확인을 관측해야 한다. 원본 차량값 변경은 테스트 source 조작이며 화면 기능이 아니다. 기존 `VehicleReadResultTest`·`VehicleRefreshStateTest` 및 거절·예외·SIMULATED 구분 테스트도 새 후보 전체 XML 검증에 포함한다.
 
 다음은 `VehicleRefreshStateTest`의 **합성 AAOS 기대값**이다. 실제 SDK 콜백 관측이나 실행 통과 기록이 아니다. `VehicleProfile.fromHardware` → 공유 `VehicleRefreshState` → 기존 후보 계산·설명 → `EntranceConfirmation` → fake 내비를 연결한다. 공통 조건은 동일 방문·120분·구매 할인 충족 가정·제외 없음이며, 부설 우선과 요금 우선 모두 검사한다.
 
@@ -18,7 +32,7 @@
 
 사용자 재조회는 **종료 후 명시적으로 시작하는 새 조회**다. 기존 자동 재시도는 각 조회의 첫 미연결 결과에만 500ms 뒤 최대 한 번이며 시작부터 3000ms 마감을 연장하지 않는다. 진행 중 반복 시작은 세대·마감·읽기 예약을 늘리지 않는다. 만료는 UNKNOWN으로 종료하며 이전 세대 결과·재시도·만료 및 화면 종료 후 콜백은 무시한다. 단일 실행기와 AndroidVehicleInfo.read를 유지한다. 이 정책은 막힌 API 호출의 강제 종료, 실행기 해제 또는 실제 서비스 회복을 보장하지 않는다.
 
-로컬 PATH에서 Java·javac·Gradle을 찾지 못했고 Android SDK도 확인되지 않아 `testPleosDebugUnitTest`·`assemblePleosDebug`는 미실행이다. 소스/assertion 대조와 작업 트리 `git diff --check`는 실행 테스트 증거가 아니다. 커밋·푸시·네트워크·자격 증명·CI 변경·도구 설치는 하지 않는다. Oracle의 새 후보 커밋 후 기존 GitHub Actions에서 **새 전체 SHA**의 source-sha.txt 및 pleos-build-<full SHA> 일치, 기존·신규 XML의 실패·오류·건너뜀 모두 0, Gradle 로그·입력 해시·unsigned APK를 확인해야 한다. README의 `sha256sum -c apk-sha256.txt` 및 동일 SHA 체크아웃의 `sha256sum -c /path/to/input-sha256.txt`, 기존 패키지·ZIP·unsigned 검사도 대기다. 기준 `076c54f109f664c45ba3a33089efa364913ff7a0` 대비 새 HEAD 전체 diff·공백 검사·5개 editPaths 제한은 새 커밋에서 확인해야 하며 기준 후보 성공으로 대체하지 않는다.
+로컬 PATH에서 Java·javac·Gradle을 찾지 못했고 Android SDK도 확인되지 않아 `testPleosDebugUnitTest`·`assemblePleosDebug`는 미실행이다. 소스/assertion 대조와 작업 트리 `git diff --check`는 실행 테스트 증거가 아니다. 커밋·푸시·네트워크·자격 증명·CI 변경·도구 설치는 하지 않는다. Oracle의 새 후보 커밋 후 기존 GitHub Actions에서 **새 전체 SHA**의 source-sha.txt 및 pleos-build-<full SHA> 일치, VehicleReadExplanationTest 포함 기존·신규 전체 XML의 실패·오류·건너뜀 모두 0, Gradle 로그·입력 해시·unsigned APK를 확인해야 한다. README의 `sha256sum -c apk-sha256.txt` 및 동일 SHA 체크아웃의 `sha256sum -c /path/to/input-sha256.txt`, 기존 패키지·ZIP·unsigned 검사도 대기다. 기준 `5bb17b10e0866087e09c57a270f31561d4e3806d` 대비 새 HEAD 전체 diff·공백 검사·지정 여섯 editPaths 제한은 새 커밋에서 확인해야 하며 기준 후보 성공으로 대체하지 않는다.
 
 Windows 설치·화면·실제 SDK 콜백·차량 신호·실차·음성·음향 증거는 없다. 합성 검증 설계·unsigned CI·실제 런타임·제출 완료를 구분한다. 1차 필수 제안서·서명 동의서, 선택 프로토타입·적격 GitHub/APK, 최종 PT 필수 작동 앱 시연은 별도 준비 대상이며 이번 구현은 제출 완료를 뜻하지 않는다.
 
