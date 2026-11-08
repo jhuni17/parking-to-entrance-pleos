@@ -22,7 +22,31 @@ final class ParkingPlan {
     record Lot(String name, String type, boolean attached, Integer heightLimitMm,
                EvEntry evEntry, Tariff tariff, Entrance entrance, String provenance) {}
 
-    record Option(Lot lot, Fit fit, String reason, Integer baseWon, Integer expectedWon) {}
+    record RequestAvailability(boolean available, String reason) {}
+
+    record Option(Lot lot, Fit fit, String reason, Integer baseWon, Integer expectedWon) {
+        RequestAvailability requestAvailability() {
+            if (fit != Fit.MATCHES_RECORDED_RULES) {
+                return new RequestAvailability(false, reason
+                        + (lot.entrance() == null ? " · 입구 정보 미확인" : ""));
+            }
+            if (lot.entrance() == null) {
+                return new RequestAvailability(false, "입구 정보 미확인");
+            }
+            return new RequestAvailability(true, "입구 경로 요청 가능");
+        }
+    }
+
+    static long requestableCount(List<Option> options) {
+        return options.stream().filter(option -> option.requestAvailability().available()).count();
+    }
+
+    static String candidateSummary(List<Option> options) {
+        long count = requestableCount(options);
+        if (options.isEmpty()) return "시설 정보 없음 · 요청 가능한 후보 0곳";
+        if (count == 0) return "요청 가능한 입구 없음 · 요청 가능한 후보 0곳";
+        return "요청 가능한 후보 " + count + "곳";
+    }
 
     record RouteRequest(String visit, Entrance entrance) {}
 
@@ -32,7 +56,8 @@ final class ParkingPlan {
         for (Lot lot : lots) {
             options.add(evaluate(lot, vehicleHeightMm, electric, stayMinutes, qualifiesForPurchaseDiscount));
         }
-        options.sort(Comparator.comparing(Option::fit)
+        options.sort(Comparator.comparing((Option option) -> !option.requestAvailability().available())
+                .thenComparing(Option::fit)
                 .thenComparing(Option::expectedWon, Comparator.nullsLast(Comparator.naturalOrder()))
                 .thenComparing(option -> !option.lot().attached()));
         return options;
@@ -60,7 +85,7 @@ final class ParkingPlan {
     }
 
     static Optional<RouteRequest> routeRequest(String visit, Option option) {
-        if (option.fit() != Fit.MATCHES_RECORDED_RULES || option.lot().entrance() == null) {
+        if (!option.requestAvailability().available()) {
             return Optional.empty();
         }
         return Optional.of(new RouteRequest(visit, option.lot().entrance()));

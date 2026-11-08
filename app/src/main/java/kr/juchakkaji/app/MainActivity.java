@@ -13,6 +13,7 @@ import android.widget.TextView;
 
 import java.text.NumberFormat;
 import java.util.Locale;
+import java.util.List;
 
 import static kr.juchakkaji.app.ParkingPlan.*;
 
@@ -68,10 +69,11 @@ public final class MainActivity extends Activity {
         if (list == null) return;
         navigation.invalidateSelections();
         destination.setText("방문 목적지  " + navigation.visit().name() + " (시연 입력)");
-        result.setText(routeStatus() + "\n차량 높이 " + (roofBox ? "2.25 m" : "1.85 m") + " · 등록 시연값");
+        List<Option> options = navigation.options(roofBox ? 2250 : 1850,
+                electric, stayMinutes, purchaseDiscount);
+        result.setText(candidateSummary(options) + "\n" + routeStatus() + "\n차량 높이 " + (roofBox ? "2.25 m" : "1.85 m") + " · 등록 시연값");
         list.removeAllViews();
-        for (Option option : navigation.options(roofBox ? 2250 : 1850,
-                electric, stayMinutes, purchaseDiscount)) {
+        for (Option option : options) {
             LinearLayout card = column();
             card.setBackgroundColor(Color.rgb(32, 40, 54));
             card.setPadding(dp(16), dp(12), dp(16), dp(12));
@@ -90,12 +92,17 @@ public final class MainActivity extends Activity {
                 card.addView(label(lot.tariff().purchaseRule(), 15));
             }
             card.addView(label(lot.provenance(), 15));
-            navigation.select(option).ifPresent(selection -> {
-                Button preview = new Button(this);
-                preview.setText("입구 경로 요청 미리보기");
-                preview.setOnClickListener(view -> confirmPreview(selection));
-                card.addView(preview);
-            });
+            RequestAvailability availability = option.requestAvailability();
+            if (!availability.available()) {
+                card.addView(label("선택 불가 · " + availability.reason(), 18));
+            } else {
+                navigation.select(option).ifPresent(selection -> {
+                    Button preview = new Button(this);
+                    preview.setText("입구 경로 요청 미리보기");
+                    preview.setOnClickListener(view -> confirmPreview(selection));
+                    card.addView(preview);
+                });
+            }
         }
     }
 
