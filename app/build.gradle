@@ -1,0 +1,44 @@
+plugins {
+    id 'com.android.application' version '8.7.3'
+}
+
+android {
+    namespace 'kr.juchakkaji.app'
+    compileSdk 35
+    useLibrary 'android.car'
+
+    defaultConfig {
+        applicationId 'kr.juchakkaji.app'
+        minSdk 28
+        targetSdk 34
+        versionCode 2
+        versionName '0.1.1'
+    }
+
+    flavorDimensions 'platform'
+    productFlavors {
+        pleos { dimension 'platform' }
+    }
+
+    buildTypes {
+        debug {
+            if (!providers.gradleProperty('signLocalDebug').isPresent()) {
+                signingConfig = null
+            }
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'ai.pleos.playground:NaviHelper:3.0.5'
+    testImplementation 'junit:junit:4.13.2'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
