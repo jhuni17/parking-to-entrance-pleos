@@ -11,6 +11,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
@@ -20,7 +21,11 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import org.json.JSONException;
+
+import java.io.IOException;
 import java.text.NumberFormat;
+import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
@@ -32,6 +37,15 @@ public final class MainActivity extends Activity {
     private static final String STAY_MINUTES = "demoProfile.stayMinutes";
 
     private final ExecutorService carReader = Executors.newSingleThreadExecutor();
+    private final ExecutorService parkingReader = Executors.newSingleThreadExecutor();
+    private final Handler parkingHandler = new Handler(Looper.getMainLooper());
+    private final Runnable nextParkingRead = this::readPublicParking;
+    private SeoulParking.Area parkingArea;
+    private int parkingGeneration;
+    private boolean parkingActive;
+    private boolean parkingLoaded;
+    private List<SeoulParking.LotStatus> publicLots = List.of();
+    private Option sincheonOption;
     private ParkingNavigation navigation;
     private PleosParkingNavigation pleosNavigation;
     private String navigationStatus = "Pleos 내비에 연결 중";
@@ -56,6 +70,7 @@ public final class MainActivity extends Activity {
     private TextView status;
     private TextView receipt;
     private LinearLayout list;
+    private LinearLayout parkingSection;
     private AlertDialog detailsDialog;
 
     @Override
@@ -97,6 +112,8 @@ public final class MainActivity extends Activity {
         content.addView(status);
         list = column();
         content.addView(list);
+        parkingSection = column();
+        content.addView(parkingSection);
         receipt = label("", 14, 500, muted);
         receipt.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
         content.addView(receipt);
@@ -112,6 +129,7 @@ public final class MainActivity extends Activity {
     @Override
     protected void onStart() {
         super.onStart();
+        parkingActive = true;
         pleosNavigation.start();
         totalHeight.start();
         vehicleState.activate();
@@ -195,6 +213,8 @@ public final class MainActivity extends Activity {
 
     @Override
     protected void onStop() {
+        parkingActive = false;
+        syncPublicParking();
         stopVehicleRead();
         super.onStop();
     }
@@ -204,6 +224,7 @@ public final class MainActivity extends Activity {
         stopVehicleRead();
         pleosNavigation.close();
         carReader.shutdownNow();
+        parkingReader.shutdownNow();
         super.onDestroy();
     }
 
@@ -221,12 +242,19 @@ public final class MainActivity extends Activity {
         quote.syncVisit(navigation.visitVersion());
         navigation.invalidateSelections();
         destination.setText(navigation.visit() == null ? "목적지 없음" : navigation.visit().name());
+        syncPublicParking();
         List<Option> options = navigation.options(totalHeight.effectiveMm(vehicleState.vehicle()), vehicleState.vehicle().widthMm(), vehicleState.vehicle().drive(), quote.stayMinutes(), quote.purchaseDiscount(), priority);
+        boolean emulatorAlternative = !options.isEmpty() && options.get(0).lot() == CoexParking.EMULATOR_ALTERNATIVE
+                && options.get(0).fit() == Fit.MATCHES_RECORDED_RULES && !options.get(0).excluded();
         RecommendationExplanation explanation = RecommendationExplanation.create(vehicleState.vehicle(), totalHeight, vehicleState.reading(), options, priority);
+        sincheonOption = options.stream().filter(option -> option.lot() == SincheonParking.LOT)
+                .findFirst().orElse(null);
         setStatus(navigation.visit() == null ? navigationStatus
                 : vehicleState.reading() ? "차량 정보 확인 중"
-                : options.isEmpty() ? "시설 정보 없음"
+                : parkingArea == SeoulParking.Area.JAMSIL ? ""
+                : options.isEmpty() ? (parkingArea == null ? "시설 정보 없음" : "")
                 : totalHeight.effectiveMm(vehicleState.vehicle()) == null ? "차량 높이 확인 필요"
+                : emulatorAlternative ? "시연용 대안 추천"
                 : requestableCount(options) == 0 ? "입구 안내 가능한 주차장 없음" : "");
         ParkingNavigation.Receipt last = navigation.lastRequest();
         receipt.setVisibility(last == null ? View.GONE : View.VISIBLE);
@@ -238,16 +266,137 @@ public final class MainActivity extends Activity {
             receipt.setOnClickListener(null);
         }
         list.removeAllViews();
+        renderPublicParking();
         if (vehicleState.reading()) return;
         for (int index = 0; index < options.size(); index++) {
             Option option = options.get(index);
-            if (index == 0 && option.requestAvailability().available()) addRecommendation(option, explanation);
+            if (option.lot() == SincheonParking.LOT) continue;
+            if (index == 0 && (option.requestAvailability().available() || emulatorAlternative)) {
+                addRecommendation(option, explanation);
+            }
             else addAlternative(option, explanation);
         }
     }
 
+    private void syncPublicParking() {
+        NavigationPort.Destination visit = navigation.visit();
+        SeoulParking.Area area = parkingActive && visit != null ? visit.publicParkingArea() : null;
+        if (area == parkingArea) return;
+        parkingHandler.removeCallbacks(nextParkingRead);
+        parkingGeneration++;
+        parkingArea = area;
+        parkingLoaded = false;
+        publicLots = List.of();
+        if (area != null) readPublicParking();
+    }
+
+    private void readPublicParking() {
+        SeoulParking.Area area = parkingArea;
+        int generation = parkingGeneration;
+        parkingReader.execute(() -> {
+            List<SeoulParking.LotStatus> lots;
+            try {
+                lots = SeoulParking.fetch(area);
+            } catch (IOException | JSONException failure) {
+                Log.w("SeoulParking", "주차 데이터 조회 실패", failure);
+                lots = List.of();
+            }
+            List<SeoulParking.LotStatus> result = lots;
+            parkingHandler.post(() -> {
+                if (generation != parkingGeneration || isDestroyed()) return;
+                publicLots = result;
+                parkingLoaded = true;
+                renderPublicParking();
+                parkingHandler.postDelayed(nextParkingRead, 60_000L);
+            });
+        });
+    }
+
+    private void renderPublicParking() {
+        parkingSection.removeAllViews();
+        if (parkingArea == null) return;
+        Instant now = Instant.now();
+        SeoulParking.Comparison comparison = SeoulParking.compare(parkingArea, publicLots, now);
+        boolean recommend = comparison.recommendNearby() && sincheonOption != null
+                && sincheonOption.requestAvailability().available();
+        String heading = recommend ? "목적지 주차장 혼잡 · 주변 대안 추천"
+                : comparison.destinationCrowded() ? "목적지 주차장 혼잡" : "공영주차장 빈자리";
+        TextView title = label(heading, 22, 700, ink);
+        title.setPadding(0, dp(16), 0, dp(3));
+        parkingSection.addView(title);
+        if (parkingArea == SeoulParking.Area.COEX) {
+            parkingSection.addView(label("코엑스 주차장 빈자리 정보 미제공", 16, 500, muted));
+        }
+        if (publicLots.isEmpty()) {
+            parkingSection.addView(label(parkingLoaded ? "공영주차장 정보를 불러오지 못했어요" : "서울시 정보 확인 중",
+                    16, 500, muted));
+            return;
+        }
+        if (comparison.destination() != null) {
+            addPublicParkingRow(comparison.destination(), comparison.destinationCrowded() ? "목적지 · 혼잡" : "목적지 주차장", now);
+        }
+        if (comparison.nearby() != null) {
+            String category = recommend ? "추천 대안" : "주변 공영주차장";
+            if (parkingArea.distanceMeters > 0) category += " · 직선 약 " + parkingArea.distanceMeters + "m";
+            addPublicParkingRow(comparison.nearby(), category, now);
+        }
+        String source = parkingArea == SeoulParking.Area.JAMSIL
+                ? "빈자리·요금 서울 열린데이터광장 · 입차 조건 서울시설공단"
+                : "서울 열린데이터광장 · 입차 조건과 입구 확인 필요";
+        parkingSection.addView(label(source, 14, 500, muted));
+    }
+
+    private void addPublicParkingRow(SeoulParking.LotStatus lot, String category, Instant now) {
+        LinearLayout card = card(parkingSection);
+        card.addView(label(category, 15, 600, muted));
+        card.addView(label(lot.name(), 20, 700, ink));
+        Integer spaces = lot.available(now);
+        String vacancy = spaces == null ? "빈자리 확인 불가" : "빈자리 " + spaces + " / " + lot.capacity() + "면";
+        String fare = lot.rate() == null ? "요금 확인 필요" : lot.rate().label();
+        card.addView(label(vacancy + " · " + fare, 20, 700, ink));
+        if (spaces != null) {
+            card.addView(label("갱신 " + lot.updatedLabel(), 14, 500, muted));
+        }
+        Option option = sincheonOption;
+        if (!SincheonParking.CODE.equals(lot.code()) || option == null || vehicleState.reading()) return;
+
+        Integer vehicleHeight = totalHeight.effectiveMm(vehicleState.vehicle());
+        String fit = option.fit() == Fit.MATCHES_RECORDED_RULES
+                ? "내 차 " + meters(vehicleHeight) + " / 높이 제한 3.0 m · 전기차 입차 가능"
+                : option.reason() + " · 높이 제한 3.0 m";
+        card.addView(label(fit, 17, 600, ink));
+        LinearLayout actions = row();
+        actions.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
+        card.addView(actions);
+        actions.addView(action("상세", false, () -> showDetails(option,
+                RecommendationExplanation.create(vehicleState.vehicle(), totalHeight, false,
+                        List.of(option), priority))));
+        if (option.requestAvailability().available() && hasSincheonVacancy(now)
+                && navigation.status() != ParkingNavigation.Status.PENDING) {
+            actions.addView(action("입구 안내 ↗", true, () -> {
+                if (!hasSincheonVacancy(Instant.now())) {
+                    renderPublicParking();
+                    return;
+                }
+                EntranceConfirmation.create(navigation, option, quote.stayMinutes(), quote.purchaseDiscount())
+                        .ifPresent(this::confirmPreview);
+            }));
+        }
+    }
+
+    private boolean hasSincheonVacancy(Instant now) {
+        if (parkingArea != SeoulParking.Area.JAMSIL) return false;
+        for (SeoulParking.LotStatus lot : publicLots) {
+            if (SincheonParking.CODE.equals(lot.code()) && lot.open24Hours()) {
+                Integer spaces = lot.available(now);
+                return spaces != null && spaces > 0;
+            }
+        }
+        return false;
+    }
+
     private void addRecommendation(Option option, RecommendationExplanation explanation) {
-        LinearLayout card = card();
+        LinearLayout card = card(list);
         LinearLayout top = row();
         top.addView(parkingMark());
         LinearLayout name = column();
@@ -255,6 +404,9 @@ public final class MainActivity extends Activity {
         Tariff tariff = option.lot().tariff();
         if (tariff != null && !tariff.purchaseRule().isEmpty()) {
             name.addView(label(tariff.purchaseRule(), 14, 500, muted));
+        }
+        if (option.lot() == CoexParking.EMULATOR_ALTERNATIVE) {
+            name.addView(label("시연 데이터 · 실제 입구 안내 없음", 14, 500, muted));
         }
         LinearLayout.LayoutParams nameParams = new LinearLayout.LayoutParams(0, -2, 1);
         nameParams.setMarginStart(dp(10));
@@ -298,13 +450,15 @@ public final class MainActivity extends Activity {
         guide.setEnabled(!pending);
         LinearLayout.LayoutParams guideParams = new LinearLayout.LayoutParams(-2, -2);
         guideParams.setMarginStart(dp(8));
-        if (compact) stack(actions, guide);
-        else actions.addView(guide, guideParams);
+        if (option.requestAvailability().available()) {
+            if (compact) stack(actions, guide);
+            else actions.addView(guide, guideParams);
+        }
         card.addView(actions);
     }
 
     private void addAlternative(Option option, RecommendationExplanation explanation) {
-        LinearLayout card = card();
+        LinearLayout card = card(list);
         card.setPadding(dp(14), dp(7), dp(14), dp(7));
         card.setMinimumHeight(dp(52));
         card.setBackground(touchBackground(cardColor, 12));
@@ -371,8 +525,10 @@ public final class MainActivity extends Activity {
         AlertDialog.Builder details = dialog().setTitle(lot.name()).setView(scroll)
                 .setNegativeButton("닫기", null)
                 .setNeutralButton("주차비 계산", (d, which) -> showQuoteSettings());
-        EntranceConfirmation.create(navigation, option, quote.stayMinutes(), quote.purchaseDiscount()).ifPresent(preview ->
-                details.setPositiveButton("입구 안내", (d, which) -> confirmPreview(preview)));
+        if (lot != SincheonParking.LOT || hasSincheonVacancy(Instant.now())) {
+            EntranceConfirmation.create(navigation, option, quote.stayMinutes(), quote.purchaseDiscount()).ifPresent(preview ->
+                    details.setPositiveButton("입구 안내", (d, which) -> confirmPreview(preview)));
+        }
         detailsDialog = show(details);
     }
 
@@ -465,6 +621,11 @@ public final class MainActivity extends Activity {
                         + (discounted ? " · 할인 적용 가정" : ""))
                 .setNegativeButton("취소", null)
                 .setPositiveButton("내비 안내", (d, which) -> {
+                    if (preview.lot() == SincheonParking.LOT && !hasSincheonVacancy(Instant.now())) {
+                        renderPublicParking();
+                        setStatus("빈자리 상태가 바뀌었어요. 다시 확인해 주세요.");
+                        return;
+                    }
                     if (navigation.confirm(preview.selection()) == ParkingNavigation.Status.STALE) {
                         setStatus("조건이 바뀌었습니다. 입구를 다시 선택하세요.");
                     }
@@ -528,13 +689,13 @@ public final class MainActivity extends Activity {
         status.setText(message);
     }
 
-    private LinearLayout card() {
+    private LinearLayout card(LinearLayout parent) {
         LinearLayout card = column();
         card.setPadding(dp(16), dp(15), dp(16), dp(15));
         card.setBackground(shape(cardColor, 12));
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
         params.topMargin = dp(9);
-        list.addView(card, params);
+        parent.addView(card, params);
         return card;
     }
 

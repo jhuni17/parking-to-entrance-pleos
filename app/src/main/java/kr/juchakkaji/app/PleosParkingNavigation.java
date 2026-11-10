@@ -8,6 +8,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 
+import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -161,6 +162,7 @@ final class PleosParkingNavigation implements NavigationPort, AutoCloseable {
     @Override public Result requestEntrance(long id, ParkingPlan.RouteRequest request) {
         if (!connected || checking || pending != null || !hasPermission(SEARCH_ROUTE)) return Result.REJECTED;
         RouteInfo target = CoexParking.route(request.entrance());
+        if (target == null) target = SincheonParking.route(request.entrance());
         if (target == null) return Result.REJECTED;
         pending = new Pending(id, target);
         routeReady = false;
@@ -206,9 +208,12 @@ final class PleosParkingNavigation implements NavigationPort, AutoCloseable {
         finishRoute(Result.REJECTED);
         lastDestination = key;
         statusChanged.accept("");
-        destinationChanged.accept(new Destination(key, info.getName(),
-                CoexParking.lotsFor(info.getName(), info.getLatitude(), info.getLongitude(),
-                        debug && Build.FINGERPRINT.startsWith("Pleos/crp_avd/")), null));
+        List<ParkingPlan.Lot> lots = CoexParking.lotsFor(info.getName(), info.getLatitude(), info.getLongitude(),
+                Build.FINGERPRINT.startsWith("Pleos/crp_avd/"));
+        SeoulParking.Area area = SeoulParking.areaFor(info.getName(), info.getLatitude(),
+                info.getLongitude(), !lots.isEmpty());
+        if (area == SeoulParking.Area.JAMSIL) lots = List.of(SincheonParking.LOT);
+        destinationChanged.accept(new Destination(key, info.getName(), lots, null, area));
     }
 
     static boolean sameEntrance(DestinationInfo observed, RouteInfo target) {
@@ -219,8 +224,8 @@ final class PleosParkingNavigation implements NavigationPort, AutoCloseable {
             if (!target.getPoiId().equals(observedId)) return false;
             String observedSubId = observed.getPoiSubId();
             // NaviHelper can omit the sub-ID even when it returns the exact requested driving point.
-            return target.getPoiSubId().equals(observedSubId)
-                    || ((observedSubId == null || observedSubId.isEmpty()) && sameCoordinates);
+            return sameCoordinates && (target.getPoiSubId().equals(observedSubId)
+                    || observedSubId == null || observedSubId.isEmpty());
         }
         return target.getPoiName().equals(observed.getName()) && sameCoordinates;
     }

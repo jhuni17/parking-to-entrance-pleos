@@ -8,8 +8,11 @@ import java.util.function.Consumer;
  * Uncorrelated events are new visits, even if their coordinates match an entrance. */
 interface NavigationPort {
     record Destination(String id, String name, List<ParkingPlan.Lot> lots,
-                       Long echoedRequestId) {
+                       Long echoedRequestId, SeoulParking.Area publicParkingArea) {
         public Destination { lots = List.copyOf(lots); }
+        public Destination(String id, String name, List<ParkingPlan.Lot> lots, Long echoedRequestId) {
+            this(id, name, lots, echoedRequestId, null);
+        }
     }
     enum Result { SIMULATED, PENDING, ACCEPTED, REJECTED }
 
