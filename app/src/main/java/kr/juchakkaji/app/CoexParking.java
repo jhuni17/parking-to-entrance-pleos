@@ -10,8 +10,8 @@ import static kr.juchakkaji.app.ParkingPlan.*;
 /** Curated, single-campus data for the first live navigation integration. */
 final class CoexParking {
     private static final Tariff COEX_FARE = new Tariff(15, 1500, 120, "대상 매장 10만 원 이상 구매 시 2시간 무료");
-    // The Pleos parking POI supplies a distinct driving guide point and display point.
-    private static final Entrance COEX_ENTRANCE = new Entrance("코엑스 주차장 입구", 37.510275, 127.06157222);
+    // Captured from the Pleos NaviHelper destination for the signed northern entrance.
+    private static final Entrance COEX_ENTRANCE = new Entrance("북문 GATE 4", 37.51345555, 127.059225);
 
     static List<Lot> lotsFor(String name, double latitude, double longitude, boolean emulatorTest) {
         String normalized = name.replace(" ", "").toLowerCase(java.util.Locale.ROOT);
@@ -30,8 +30,8 @@ final class CoexParking {
 
     static RouteInfo route(Entrance entrance) {
         if (!COEX_ENTRANCE.equals(entrance)) return null;
-        return new RouteInfo(entrance.latitude(), entrance.longitude(), 37.51068056, 127.0601278,
-                "코엑스주차장", "36khp5gns575cm5nqhf7", "서울특별시 강남구 영동대로 513",
+        return new RouteInfo(entrance.latitude(), entrance.longitude(), null, null,
+                "코엑스 GATE4(북문주차장)", "36khp5g3dn76cm5nqhe3", "서울특별시 강남구 영동대로 513",
                 "0", RouteOption.RECOMMENDED, "", false);
     }
 

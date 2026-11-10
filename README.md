@@ -8,7 +8,7 @@ Pleos 기본 내비에서 목적지를 설정하고 앱을 열면 NaviHelper로 
 
 - **공식 공개 정보** · 코엑스 지하 높이, 승용차 기본요금, 10만 원 구매 할인. 2026-11-08 확인. [진입 높이](https://business.coex.co.kr/guide/conference-room-parking-information/general-vehicle/) · [요금·할인](https://www.coex.co.kr/guide/parking-information/fee/)
 - **차량 정보** · AAOS `CarPropertyManager`에서 제조사·차종·연식·연료·외부 치수를 읽는다. 높이 조회가 안 되면 현재 등록한 정확한 모델·연식의 공식 기본 제원만 쓴다. 현재 제원표는 2025 Hyundai IONIQ 5 N 한 항목이다. 2026-11-08 확인. [AAOS 속성](https://developer.android.com/reference/android/car/VehiclePropertyIds) · [제조사 제원](https://dmassets.hyundai.com/is/content/hyundaiautoever/IONIQ_5N_MY25pdf)
-- **내비와 주차장 데이터** · 코엑스의 주차장 POI 차량 안내점을 Pleos 기본 내비에서 확인했다. 공식 Pleos AVD의 디버그 빌드에서는 경로 시험을 위해 전기차 입차 가능을 가정하고 상세에 표시한다. 일반 빌드는 전기차 입차 조건을 미확인으로 처리한다. 이전 시연 데이터는 판단 로직 테스트에 사용한다. [NaviHelper 목적지 안내](https://document.pleos.ai/en/docs/pleos-only/connect-sdk-pleos/NaviHelper/destinations)
+- **내비와 주차장 데이터** · 코엑스 북문 GATE 4의 차량 안내점을 Pleos 기본 내비와 NaviHelper로 확인했다. 공식 Pleos AVD의 디버그 빌드에서는 경로 시험을 위해 전기차 입차 가능을 가정하고 상세에 표시한다. 일반 빌드는 전기차 입차 조건을 미확인으로 처리한다. 이전 시연 데이터는 판단 로직 테스트에 사용한다. [코엑스 진입로](https://www.coex.co.kr/guide/directions/) · [NaviHelper 목적지 안내](https://document.pleos.ai/en/docs/pleos-only/connect-sdk-pleos/NaviHelper/destinations)
 - **글꼴** · [42dot Asta Sans 원본](https://github.com/42dot/Asta-Sans/tree/69ecccd58dcb8b506f665867733b17773bc4bb9f)을 앱에 번들한다. OFL은 APK의 `res/raw/asta_sans_ofl.txt` 리소스에 포함한다.
 
 ## 빌드와 검증

@@ -282,19 +282,24 @@ public final class MainActivity extends Activity {
             reason.setSingleLine(true);
             card.addView(reason);
         }
-        LinearLayout actions = row();
+        LinearLayout actions = compact ? column() : row();
         actions.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
         actions.setPadding(0, dp(10), 0, 0);
-        actions.addView(action("상세", false, () -> showDetails(option, explanation)));
+        if (compact) stack(actions, action("상세", false, () -> showDetails(option, explanation)));
+        else actions.addView(action("상세", false, () -> showDetails(option, explanation)));
         Button fare = action("주차비 계산", false, this::showQuoteSettings);
         LinearLayout.LayoutParams fareParams = new LinearLayout.LayoutParams(-2, -2);
         fareParams.setMarginStart(dp(8));
-        actions.addView(fare, fareParams);
-        Button guide = action("입구 안내 ↗", true, () -> EntranceConfirmation.create(navigation, option, quote.stayMinutes(), quote.purchaseDiscount())
+        if (compact) stack(actions, fare);
+        else actions.addView(fare, fareParams);
+        boolean pending = navigation.status() == ParkingNavigation.Status.PENDING;
+        Button guide = action(pending ? "내비 요청 중" : "입구 안내 ↗", true, () -> EntranceConfirmation.create(navigation, option, quote.stayMinutes(), quote.purchaseDiscount())
                 .ifPresent(this::confirmPreview));
+        guide.setEnabled(!pending);
         LinearLayout.LayoutParams guideParams = new LinearLayout.LayoutParams(-2, -2);
         guideParams.setMarginStart(dp(8));
-        actions.addView(guide, guideParams);
+        if (compact) stack(actions, guide);
+        else actions.addView(guide, guideParams);
         card.addView(actions);
     }
 
@@ -326,11 +331,14 @@ public final class MainActivity extends Activity {
         Lot lot = option.lot();
         FareDetails fare = FareDetails.create(option, quote.stayMinutes(), quote.purchaseDiscount());
         String summary = lot.type()
-                + "\n입구 " + (lot.entrance() == null ? "정보 미확인" : lot.entrance().label())
+                + "\n" + (lot.entrance() == null ? "입구 미확인" : lot.entrance().label())
                 + "\n높이 제한 " + meters(lot.heightLimitMm())
-                + "\n" + option.requestAvailability().reason()
+                + (option.requestAvailability().available() ? "" : "\n" + option.requestAvailability().reason())
                 + "\n\n" + fare.stayMinutes() + "분 예상 " + won(fare.expectedWon())
-                + " (할인 전 " + won(fare.baseWon()) + ")\n" + fare.discountText();
+                + (java.util.Objects.equals(fare.baseWon(), fare.expectedWon())
+                        ? "" : " (할인 전 " + won(fare.baseWon()) + ")")
+                + "\n" + (fare.purchaseDiscount() && lot.tariff() != null && !lot.tariff().purchaseRule().isBlank()
+                        ? "구매 할인 적용 가정" : fare.discountText());
         String source = VehicleReadExplanation.details(vehicleState, totalHeight)
                 + "\n" + explanation.vehicleDetails()
                 + "\n" + lot.widthDetails()
@@ -339,11 +347,11 @@ public final class MainActivity extends Activity {
         LinearLayout body = column();
         body.setPadding(dp(24), dp(8), dp(24), 0);
         body.addView(label(summary, 18, 500, ink));
-        stack(body, action(option.excluded() ? "제외 되돌리기" : "이번 방문에서 제외", false, () ->
-                navigation.setExcluded(visitVersion, lot, !option.excluded())));
         LinearLayout more = column();
         more.setVisibility(View.GONE);
         more.addView(label(source, 15, 400, muted));
+        stack(more, action(option.excluded() ? "제외 되돌리기" : "이번 방문에서 제외", false, () ->
+                navigation.setExcluded(visitVersion, lot, !option.excluded())));
         stack(more, action("추천 기준", false, () -> show(dialog().setTitle("추천 기준")
                 .setSingleChoiceItems(new String[]{"부설 우선", "요금 우선"},
                         priority == Priority.ATTACHED_FIRST ? 0 : 1, (d, which) -> {
@@ -449,9 +457,12 @@ public final class MainActivity extends Activity {
     }
 
     private void confirmPreview(EntranceConfirmation preview) {
-        show(dialog().setTitle("이 입구로 안내할까요?")
+        boolean discounted = preview.purchaseDiscount() && preview.lot().tariff() != null
+                && !preview.lot().tariff().purchaseRule().isBlank();
+        detailsDialog = show(dialog().setTitle("이 입구로 안내할까요?")
                 .setMessage(preview.entrance().label() + "\n" + preview.stayMinutes()
-                        + "분 예상 " + won(preview.expectedWon()) + "\n" + preview.discountText())
+                        + "분 예상 " + won(preview.expectedWon())
+                        + (discounted ? " · 할인 적용 가정" : ""))
                 .setNegativeButton("취소", null)
                 .setPositiveButton("내비 안내", (d, which) -> {
                     if (navigation.confirm(preview.selection()) == ParkingNavigation.Status.STALE) {

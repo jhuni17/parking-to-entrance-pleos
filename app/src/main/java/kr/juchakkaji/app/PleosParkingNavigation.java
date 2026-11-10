@@ -211,14 +211,18 @@ final class PleosParkingNavigation implements NavigationPort, AutoCloseable {
                         debug && Build.FINGERPRINT.startsWith("Pleos/crp_avd/")), null));
     }
 
-    private static boolean sameEntrance(DestinationInfo observed, RouteInfo target) {
-        if (!target.getPoiId().isEmpty() && observed.getPoiId() != null && !observed.getPoiId().isEmpty()) {
-            return target.getPoiId().equals(observed.getPoiId())
-                    && target.getPoiSubId().equals(observed.getPoiSubId());
-        }
-        return observed.getName().equals(target.getPoiName())
-                && Math.abs(observed.getLatitude() - target.getLatitude()) < 0.0002
+    static boolean sameEntrance(DestinationInfo observed, RouteInfo target) {
+        boolean sameCoordinates = Math.abs(observed.getLatitude() - target.getLatitude()) < 0.0002
                 && Math.abs(observed.getLongitude() - target.getLongitude()) < 0.0002;
+        String observedId = observed.getPoiId();
+        if (!target.getPoiId().isEmpty() && observedId != null && !observedId.isEmpty()) {
+            if (!target.getPoiId().equals(observedId)) return false;
+            String observedSubId = observed.getPoiSubId();
+            // NaviHelper can omit the sub-ID even when it returns the exact requested driving point.
+            return target.getPoiSubId().equals(observedSubId)
+                    || ((observedSubId == null || observedSubId.isEmpty()) && sameCoordinates);
+        }
+        return target.getPoiName().equals(observed.getName()) && sameCoordinates;
     }
 
     private static boolean validCoordinates(double latitude, double longitude) {
