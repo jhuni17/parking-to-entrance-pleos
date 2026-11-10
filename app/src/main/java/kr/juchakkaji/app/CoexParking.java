@@ -1,0 +1,39 @@
+package kr.juchakkaji.app;
+
+import java.util.List;
+
+import ai.pleos.playground.navi.constants.RouteOption;
+import ai.pleos.playground.navi.data.RouteInfo;
+
+import static kr.juchakkaji.app.ParkingPlan.*;
+
+/** Curated, single-campus data for the first live navigation integration. */
+final class CoexParking {
+    private static final Tariff COEX_FARE = new Tariff(15, 1500, 120, "대상 매장 10만 원 이상 구매 시 2시간 무료");
+    // The Pleos parking POI supplies a distinct driving guide point and display point.
+    private static final Entrance COEX_ENTRANCE = new Entrance("코엑스 주차장 입구", 37.510275, 127.06157222);
+
+    static List<Lot> lotsFor(String name, double latitude, double longitude, boolean emulatorTest) {
+        String normalized = name.replace(" ", "").toLowerCase(java.util.Locale.ROOT);
+        if (!(normalized.equals("코엑스") || normalized.equals("coex")
+                || normalized.equals("코엑스컨벤션센터")
+                || normalized.equals("코엑스몰") || normalized.equals("스타필드코엑스몰")
+                || normalized.equals("coexmall")) || Math.abs(latitude - 37.512) > 0.004
+                || Math.abs(longitude - 127.059) > 0.004) return List.of();
+        return List.of(new Lot("코엑스 지하주차장", emulatorTest ? "부설 · 지하 · 경로 시험" : "부설 · 지하",
+                true, 2200, emulatorTest ? EvEntry.ALLOWED : EvEntry.UNKNOWN, COEX_FARE, COEX_ENTRANCE,
+                "코엑스 공식 안내: 높이·요금·구매 할인 (2026-11-10 확인)\n"
+                        + "Pleos 기본 내비: 주차장 POI의 차량 안내점 (2026-11-10 확인)\n"
+                        + (emulatorTest ? "전기차 입차 허용은 에뮬레이터 경로 시험용 가정"
+                        : "전기차 입차 조건 미확인")));
+    }
+
+    static RouteInfo route(Entrance entrance) {
+        if (!COEX_ENTRANCE.equals(entrance)) return null;
+        return new RouteInfo(entrance.latitude(), entrance.longitude(), 37.51068056, 127.0601278,
+                "코엑스주차장", "36khp5gns575cm5nqhf7", "서울특별시 강남구 영동대로 513",
+                "0", RouteOption.RECOMMENDED, "", false);
+    }
+
+    private CoexParking() {}
+}

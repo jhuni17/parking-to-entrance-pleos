@@ -6,12 +6,14 @@ import static kr.juchakkaji.app.VehicleProfile.DriveType.ELECTRIC;
 import static kr.juchakkaji.app.VehicleProfile.DriveType.NON_ELECTRIC;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import static org.junit.Assert.*;
 
 public final class ParkingNavigationTest {
     static final class Fake implements NavigationPort {
         Consumer<Destination> listener;
+        BiConsumer<Long, Result> routeResult;
         List<ParkingPlan.RouteRequest> requests = new ArrayList<>();
         Result result = Result.ACCEPTED;
         long lastId;
@@ -19,6 +21,7 @@ public final class ParkingNavigationTest {
         boolean throwsFailure;
         Runnable duringRequest = () -> {};
         public void setDestinationListener(Consumer<Destination> listener) { this.listener = listener; }
+        public void setRouteResultListener(BiConsumer<Long, Result> listener) { routeResult = listener; }
         public Result requestEntrance(long id, ParkingPlan.RouteRequest request) {
             requests.add(request);
             lastId = id;
@@ -203,6 +206,28 @@ public final class ParkingNavigationTest {
         assertNull(nav.lastRequest());
         assertEquals(2, fake.requests.size());
         assertEquals("original", fake.requests.get(1).visit());
+    }
+
+    @Test public void pendingRouteOnlyCompletesForTheMatchingRequestAndVisit() {
+        Fake fake = new Fake();
+        fake.result = NavigationPort.Result.PENDING;
+        ParkingNavigation nav = new ParkingNavigation(fake, () -> {});
+        fake.visit("first", SampleTrip.LOTS);
+        assertEquals(ParkingNavigation.Status.PENDING, nav.confirm(select(nav)));
+        assertEquals(ParkingNavigation.Status.STALE, nav.confirm(select(nav)));
+        long firstId = fake.lastId;
+        fake.routeResult.accept(firstId + 1, NavigationPort.Result.ACCEPTED);
+        assertEquals(ParkingNavigation.Status.PENDING, nav.lastRequest().outcome());
+        fake.routeResult.accept(firstId, NavigationPort.Result.ACCEPTED);
+        assertEquals(ParkingNavigation.Status.ACCEPTED, nav.lastRequest().outcome());
+        assertEquals("first", nav.visit().name());
+
+        assertEquals(ParkingNavigation.Status.PENDING, nav.confirm(select(nav)));
+        long secondId = fake.lastId;
+        fake.visit("second", SampleTrip.LOTS);
+        fake.routeResult.accept(secondId, NavigationPort.Result.REJECTED);
+        assertNull(nav.lastRequest());
+        assertEquals("second", nav.visit().name());
     }
 
 }

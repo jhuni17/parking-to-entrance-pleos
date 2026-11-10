@@ -4,11 +4,11 @@
 
 ## 현재 Android 화면
 
-앱을 열면 Android Automotive의 차량 정보로 입차 조건을 계산한다. 입구 안내가 가능한 부설 주차장을 먼저 표시하고 대안은 아래에 표시한다. 체류 시간과 구매 할인 가정은 상세 화면의 요금 조건에서 바꿀 수 있다.
+Pleos 기본 내비에서 목적지를 설정하고 앱을 열면 NaviHelper로 방문지를 읽고 Android Automotive의 차량 정보로 입차 조건을 계산한다. 현재 실제 목적지에 연결된 시설 데이터는 코엑스에 한정한다. 예상 체류 시간과 구매 할인은 **주차비 계산**에서 바꿀 수 있다.
 
 - **공식 공개 정보** · 코엑스 지하 높이, 승용차 기본요금, 10만 원 구매 할인. 2026-11-08 확인. [진입 높이](https://business.coex.co.kr/guide/conference-room-parking-information/general-vehicle/) · [요금·할인](https://www.coex.co.kr/guide/parking-information/fee/)
 - **차량 정보** · AAOS `CarPropertyManager`에서 제조사·차종·연식·연료·외부 치수를 읽는다. 높이 조회가 안 되면 현재 등록한 정확한 모델·연식의 공식 기본 제원만 쓴다. 현재 제원표는 2025 Hyundai IONIQ 5 N 한 항목이다. 2026-11-08 확인. [AAOS 속성](https://developer.android.com/reference/android/car/VehiclePropertyIds) · [제조사 제원](https://dmassets.hyundai.com/is/content/hyundaiautoever/IONIQ_5N_MY25pdf)
-- **시연 입력** · 목적지, 입구 좌표와 주변 대안은 시연값이다. 경로 요청은 `SampleTrip.SimulatedNavigation`에서 처리하며 화면에 시연 요청으로 표시한다. 차량 속성의 실제 Pleos 런타임 가용성은 별도로 확인한다.
+- **내비와 주차장 데이터** · 코엑스의 주차장 POI 차량 안내점을 Pleos 기본 내비에서 확인했다. 공식 Pleos AVD의 디버그 빌드에서는 경로 시험을 위해 전기차 입차 가능을 가정하고 상세에 표시한다. 일반 빌드는 전기차 입차 조건을 미확인으로 처리한다. 이전 시연 데이터는 판단 로직 테스트에 사용한다. [NaviHelper 목적지 안내](https://document.pleos.ai/en/docs/pleos-only/connect-sdk-pleos/NaviHelper/destinations)
 - **글꼴** · [42dot Asta Sans 원본](https://github.com/42dot/Asta-Sans/tree/69ecccd58dcb8b506f665867733b17773bc4bb9f)을 앱에 번들한다. OFL은 APK의 `res/raw/asta_sans_ofl.txt` 리소스에 포함한다.
 
 ## 빌드와 검증
@@ -39,16 +39,15 @@ GitHub Actions의 `pleos-emulator-validation.yml`은 Ubuntu 24.04에서 PR의 �
 
 `NavigationPort`는 목적지 이벤트와 입구 요청의 주입 경계이며 `ParkingNavigation`은 최신 방문지, 선택 만료, 확인 및 결과 상태를 관리한다. 방문지별 주차 목록은 이벤트에 포함한다. 새 목적지를 받으면 이전 선택은 만료된다. 확인 전에는 요청하지 않고 각 선택은 확인 시 한 번만 소비한다. 차량·방문 조건을 다시 표시할 때도 열린 확인의 선택을 만료시킨다. 거절 또는 예외는 실패로, 시연 처리는 실제 요청 수락과 별도로 표시한다.
 
-입구 되울림은 어댑터가 요청의 `requestId`를 `echoedRequestId`로 돌려주는 계약이다. 이미 보낸 요청의 되울림은 방문지를 바꾸지 않는다. 상관 ID 없는 이벤트는 같은 위치라도 새 방문지다. 이는 앱 내부 설계이며 NaviHelper가 해당 ID나 콜백을 제공한다는 주장이 아니다. 실제 어댑터는 SDK의 공개 의존성·호출 조건과 되울림 식별 가능성을 확인한 뒤 별도 구현해야 한다. 현재 어댑터는 SDK를 호출하지 않는다.
+실제 어댑터는 NaviHelper 3.0.5를 초기화해 목적지 정보를 조회한다. 사용자가 입구를 확인하면 `requestRoute()`를 호출하고 결과 대기 상태를 표시한다. 경로 완료 또는 안내 상태를 받고 조회된 목적지가 요청한 입구와 일치하면 완료로 기록한다. 이 경우 원래 방문지를 주차 앱에 유지한다. SDK 오류나 응답 시간 초과는 실패로 기록한다. 요청 ID는 앱 내부 값이다.
 
 | 통과 항목 | 결정적 fake 테스트 (`ParkingNavigationTest`) |
 | --- | --- |
 | 최신 목적지만 활성화·이전 선택 요청 차단 | `newestVisitOwnsOptionsAndInvalidatesOldSelection` |
 | 확인 전 0건·확인 후 선택 입구로 1건 | `confirmationAloneSendsExactlyOnceWithChosenCoordinates` |
 | 실패·시연·수락 구분 | `rejectionSimulationAndExceptionAreNotSuccess` |
+| 비동기 결과를 해당 요청과 방문지에 적용 | `pendingRouteOnlyCompletesForTheMatchingRequestAndVisit` |
 | 동기·지연 되울림 시 원래 방문지 유지·새 방문지 교체 | `synchronousAndDelayedEntranceEchoPreserveVisitButNewVisitReplacesIt` |
 | 조건 변경·높이 및 미확인 제한 유지 | `changedVehicleConditionsInvalidateOpenConfirmation`, `restrictedAndUnknownOptionsCannotBeSelected` 및 기존 `ParkingPlanTest` |
 
-현행 기준 후보 `60156b86049cc5a2f08cabf82331ca87dc6dc8be`는 제공 acceptedReview상 Actions `42514619983`에서 `testPleosDebugUnitTest`·`assemblePleosDebug`가 성공했다. XML 25개·테스트 139건·실패/오류/건너뜀 각 0건이며 보고 수령일은 2026-11-09다. 이번 작업의 직접 재검증은 아니며 APK 해시는 미제공이다. 최초 13건 후보는 과거 기록으로만 구분한다. 후보별 결과·근거 범위와 문서 수정 이후 새 후보의 검증 요구는 [후보별 검증 상태](contest-brief.md#후보별-검증-상태)를 따른다.
-
-과거 로컬 시도 (2026-11-08): `gradle --offline --no-daemon --console=plain :app:testPleosDebugUnitTest :app:assemblePleosDebug`는 `gradle: command not found`로 실행되지 않았고, 당시 `java`와 `javac`도 PATH에 없었다. 이는 당시 환경의 기록이다. 문서 정정을 포함한 이후 변경 HEAD는 별도 검증 대상이다. 실제 SDK 콜백, Windows 에뮬레이터 설치·화면, 차량·음성·음향 시험 및 릴리스·공개 배포 증거는 미확보다.
+이전 후보의 빌드·검수 이력은 [후보별 검증 상태](contest-brief.md#후보별-검증-상태)를 따른다.

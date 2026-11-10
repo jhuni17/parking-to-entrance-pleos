@@ -14,7 +14,6 @@ import android.os.SystemClock;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
-import android.widget.CheckBox;
 import android.widget.EditText;
 import android.text.InputType;
 import android.widget.LinearLayout;
@@ -34,6 +33,8 @@ public final class MainActivity extends Activity {
 
     private final ExecutorService carReader = Executors.newSingleThreadExecutor();
     private ParkingNavigation navigation;
+    private PleosParkingNavigation pleosNavigation;
+    private String navigationStatus = "Pleos 내비에 연결 중";
     private final VehicleHeight totalHeight = new VehicleHeight();
     private final Handler vehicleHandler = new Handler(Looper.getMainLooper());
     private final VehicleRefreshState vehicleState = new VehicleRefreshState();
@@ -87,7 +88,7 @@ public final class MainActivity extends Activity {
         LinearLayout header = row();
         destination = label("", 27, 700, ink);
         header.addView(destination, new LinearLayout.LayoutParams(0, -2, 1));
-        TextView mode = label("시연 목적지", 13, 500, muted);
+        TextView mode = label("Pleos 내비", 13, 500, muted);
         mode.setPadding(dp(8), 0, 0, 0);
         header.addView(mode);
         content.addView(header);
@@ -100,17 +101,27 @@ public final class MainActivity extends Activity {
         receipt.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
         content.addView(receipt);
 
-        SampleTrip.SimulatedNavigation adapter = new SampleTrip.SimulatedNavigation();
-        navigation = new ParkingNavigation(adapter, this::refresh);
-        adapter.start();
+        pleosNavigation = new PleosParkingNavigation(getApplicationContext(), message -> {
+            navigationStatus = message;
+            if (navigation.visit() == null) setStatus(message);
+        });
+        navigation = new ParkingNavigation(pleosNavigation, this::refresh);
+        refresh();
     }
 
     @Override
     protected void onStart() {
         super.onStart();
+        pleosNavigation.start();
         totalHeight.start();
         vehicleState.activate();
         startVehicleRead();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        pleosNavigation.refresh();
     }
 
     private void startVehicleRead() {
@@ -191,6 +202,7 @@ public final class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         stopVehicleRead();
+        pleosNavigation.close();
         carReader.shutdownNow();
         super.onDestroy();
     }
@@ -211,7 +223,8 @@ public final class MainActivity extends Activity {
         destination.setText(navigation.visit() == null ? "목적지 없음" : navigation.visit().name());
         List<Option> options = navigation.options(totalHeight.effectiveMm(vehicleState.vehicle()), vehicleState.vehicle().widthMm(), vehicleState.vehicle().drive(), quote.stayMinutes(), quote.purchaseDiscount(), priority);
         RecommendationExplanation explanation = RecommendationExplanation.create(vehicleState.vehicle(), totalHeight, vehicleState.reading(), options, priority);
-        setStatus(vehicleState.reading() ? "차량 정보 확인 중"
+        setStatus(navigation.visit() == null ? navigationStatus
+                : vehicleState.reading() ? "차량 정보 확인 중"
                 : options.isEmpty() ? "시설 정보 없음"
                 : totalHeight.effectiveMm(vehicleState.vehicle()) == null ? "차량 높이 확인 필요"
                 : requestableCount(options) == 0 ? "입구 안내 가능한 주차장 없음" : "");
@@ -248,10 +261,10 @@ public final class MainActivity extends Activity {
         top.addView(name, nameParams);
         card.addView(top);
 
-        boolean compact = getResources().getConfiguration().screenWidthDp < 440;
+        boolean compact = getResources().getConfiguration().screenWidthDp < 440 * uiScale();
         LinearLayout cost = compact ? row() : column();
         TextView amount = label(won(option.expectedWon()), 27, 700, ink);
-        TextView duration = label(quote.durationText(), 13, 500, muted);
+        TextView duration = label(quote.durationText(), 15, 500, muted);
         cost.addView(amount);
         cost.addView(duration);
         if (compact) {
@@ -273,6 +286,10 @@ public final class MainActivity extends Activity {
         actions.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
         actions.setPadding(0, dp(10), 0, 0);
         actions.addView(action("상세", false, () -> showDetails(option, explanation)));
+        Button fare = action("주차비 계산", false, this::showQuoteSettings);
+        LinearLayout.LayoutParams fareParams = new LinearLayout.LayoutParams(-2, -2);
+        fareParams.setMarginStart(dp(8));
+        actions.addView(fare, fareParams);
         Button guide = action("입구 안내 ↗", true, () -> EntranceConfirmation.create(navigation, option, quote.stayMinutes(), quote.purchaseDiscount())
                 .ifPresent(this::confirmPreview));
         LinearLayout.LayoutParams guideParams = new LinearLayout.LayoutParams(-2, -2);
@@ -307,22 +324,27 @@ public final class MainActivity extends Activity {
     private void showDetails(Option option, RecommendationExplanation explanation) {
         long visitVersion = navigation.visitVersion();
         Lot lot = option.lot();
-        String text = lot.type() + "\n입구 높이 제한 " + meters(lot.heightLimitMm())
-                + " (" + (lot.heightLimitMm() == null ? "미확인" : lot.heightLimitMm() + "mm") + ")"
-                + "\n" + VehicleReadExplanation.details(vehicleState, totalHeight)
+        FareDetails fare = FareDetails.create(option, quote.stayMinutes(), quote.purchaseDiscount());
+        String summary = lot.type()
+                + "\n입구 " + (lot.entrance() == null ? "정보 미확인" : lot.entrance().label())
+                + "\n높이 제한 " + meters(lot.heightLimitMm())
+                + "\n" + option.requestAvailability().reason()
+                + "\n\n" + fare.stayMinutes() + "분 예상 " + won(fare.expectedWon())
+                + " (할인 전 " + won(fare.baseWon()) + ")\n" + fare.discountText();
+        String source = VehicleReadExplanation.details(vehicleState, totalHeight)
                 + "\n" + explanation.vehicleDetails()
                 + "\n" + lot.widthDetails()
                 + (vehicleState.vehicle().model().isEmpty() ? "" : "\n차량 " + vehicleState.vehicle().model())
-                + "\n" + option.vehicleFitDetails()
-                + "\n사용자 선택: " + (option.excluded() ? "이번 방문 제외" : "제외 없음")
-                + "\n" + option.requestAvailability().reason() + "\n\n" + lot.provenance();
-        text += "\n" + FareDetails.create(option, quote.stayMinutes(), quote.purchaseDiscount()).message();
+                + "\n" + option.vehicleFitDetails() + "\n\n" + lot.provenance();
         LinearLayout body = column();
         body.setPadding(dp(24), dp(8), dp(24), 0);
-        body.addView(label(text, 16, 400, ink));
-        body.addView(action(option.excluded() ? "제외 되돌리기" : "이번 방문에서 제외", false, () ->
+        body.addView(label(summary, 18, 500, ink));
+        stack(body, action(option.excluded() ? "제외 되돌리기" : "이번 방문에서 제외", false, () ->
                 navigation.setExcluded(visitVersion, lot, !option.excluded())));
-        body.addView(action("추천 기준", false, () -> show(dialog().setTitle("추천 기준")
+        LinearLayout more = column();
+        more.setVisibility(View.GONE);
+        more.addView(label(source, 15, 400, muted));
+        stack(more, action("추천 기준", false, () -> show(dialog().setTitle("추천 기준")
                 .setSingleChoiceItems(new String[]{"부설 우선", "요금 우선"},
                         priority == Priority.ATTACHED_FIRST ? 0 : 1, (d, which) -> {
                             priority = which == 0 ? Priority.ATTACHED_FIRST : Priority.FARE_FIRST;
@@ -330,13 +352,17 @@ public final class MainActivity extends Activity {
                             refresh();
                         })
                 .setNegativeButton("취소", null))));
-        body.addView(action("총높이 보완", false, this::showTotalHeight));
-        body.addView(action("차량 정보 다시 확인", false, this::startVehicleRead));
+        LinearLayout recovery = option.fit() == Fit.MATCHES_RECORDED_RULES ? more : body;
+        stack(recovery, action("총높이 보완", false, this::showTotalHeight));
+        stack(recovery, action("차량 정보 다시 확인", false, this::startVehicleRead));
+        stack(body, action("차량·출처 정보", false, () ->
+                more.setVisibility(more.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE)));
+        body.addView(more);
         ScrollView scroll = new ScrollView(this);
         scroll.addView(body);
         AlertDialog.Builder details = dialog().setTitle(lot.name()).setView(scroll)
                 .setNegativeButton("닫기", null)
-                .setNeutralButton("요금 조건", (d, which) -> showQuoteSettings());
+                .setNeutralButton("주차비 계산", (d, which) -> showQuoteSettings());
         EntranceConfirmation.create(navigation, option, quote.stayMinutes(), quote.purchaseDiscount()).ifPresent(preview ->
                 details.setPositiveButton("입구 안내", (d, which) -> confirmPreview(preview)));
         detailsDialog = show(details);
@@ -376,24 +402,44 @@ public final class MainActivity extends Activity {
         VisitQuoteState.Token token = quote.open();
         LinearLayout body = column();
         body.setPadding(dp(24), dp(8), dp(24), 0);
-        body.addView(label("체류 시간(분) · 앱 내부 입력 정책: 정수 1~360분", 16, 400, ink));
+        body.addView(label("주차 예상 시간(분) · 1~360분", 17, 600, ink));
         EditText minutes = new EditText(this);
         minutes.setInputType(InputType.TYPE_CLASS_NUMBER);
         minutes.setSingleLine(true);
+        minutes.setTypeface(font);
+        minutes.setTextSize(26 * uiScale());
+        minutes.setTextColor(ink);
+        minutes.setGravity(Gravity.CENTER);
         minutes.setText(Integer.toString(quote.stayMinutes()));
-        body.addView(minutes);
-        CheckBox discount = new CheckBox(this);
-        discount.setText("구매 할인 조건 충족 가정");
-        discount.setTypeface(font);
-        discount.setChecked(quote.purchaseDiscount());
-        body.addView(discount);
-        AlertDialog alert = show(dialog().setTitle("요금 조건 · " + navigation.visit().name())
-                .setMessage("체류 시간은 다음 방문에도 유지 · 구매 할인은 현재 방문에만 적용")
+        LinearLayout stepper = row();
+        stepper.addView(action("-30분", false, () -> step(minutes, -30)));
+        stepper.addView(minutes, new LinearLayout.LayoutParams(0, -2, 1));
+        stepper.addView(action("+30분", false, () -> step(minutes, 30)));
+        body.addView(stepper);
+        boolean[] discount = {quote.purchaseDiscount()};
+        Button toggle = action("", false, () -> { });
+        Runnable paint = () -> {
+            toggle.setText(discount[0] ? "✓  구매 할인 적용" : "□  구매 할인 미적용");
+            toggle.setSelected(discount[0]);
+            toggle.setTextColor(discount[0] ? onStrong : ink);
+            GradientDrawable fill = shape(discount[0] ? strong : surface, 8);
+            fill.setStroke(dp(2), discount[0] ? strong : muted);
+            toggle.setBackground(fill);
+        };
+        toggle.setOnClickListener(view -> {
+            discount[0] = !discount[0];
+            paint.run();
+        });
+        paint.run();
+        stack(body, toggle);
+        AlertDialog alert = show(dialog().setTitle("예상 주차비 계산")
+                .setMessage("구매 할인은 이번 방문에만 적용해 계산합니다.")
                 .setView(body).setNegativeButton("취소", null)
                 .setPositiveButton("적용", null));
+        alert.getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
         alert.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(view -> {
             quote.syncVisit(navigation.visitVersion());
-            if (!quote.apply(token, minutes.getText().toString(), discount.isChecked())) {
+            if (!quote.apply(token, minutes.getText().toString(), discount[0])) {
                 minutes.setError("정수 1~360분을 입력하세요. 방문이 바뀌었다면 창을 다시 여세요.");
                 return;
             }
@@ -404,9 +450,10 @@ public final class MainActivity extends Activity {
 
     private void confirmPreview(EntranceConfirmation preview) {
         show(dialog().setTitle("이 입구로 안내할까요?")
-                .setMessage(preview.message())
+                .setMessage(preview.entrance().label() + "\n" + preview.stayMinutes()
+                        + "분 예상 " + won(preview.expectedWon()) + "\n" + preview.discountText())
                 .setNegativeButton("취소", null)
-                .setPositiveButton("시연 요청", (d, which) -> {
+                .setPositiveButton("내비 안내", (d, which) -> {
                     if (navigation.confirm(preview.selection()) == ParkingNavigation.Status.STALE) {
                         setStatus("조건이 바뀌었습니다. 입구를 다시 선택하세요.");
                     }
@@ -418,10 +465,12 @@ public final class MainActivity extends Activity {
         Entrance entrance = last.request().entrance();
         String coordinates = String.format(Locale.KOREA, "%.5f, %.5f", entrance.latitude(), entrance.longitude());
         detailsDialog = show(dialog().setTitle("마지막 요청")
-                .setMessage(last.request().visit() + "\n" + last.lot().name() + "\n" + entrance.label() + "\n" + coordinates
-                        + "\n당시 요청 결과: " + recheck.outcomeText()
-                        + "\n\n" + recheck.currentText() + "\n\n현재 차량값·출처\n" + vehicleDetails
-                        + "\n시설 출처\n" + last.lot().provenance())
+                .setMessage(entrance.label() + "\n" + last.lot().name() + " · " + last.request().visit()
+                        + "\n당시 요청 결과: " + recheck.outcomeText() + "\n\n" + recheck.currentText())
+                .setNeutralButton("좌표·출처", (d, which) -> show(dialog().setTitle("좌표·출처")
+                        .setMessage(coordinates + "\n\n현재 차량값·출처\n" + vehicleDetails
+                                + "\n시설 출처\n" + last.lot().provenance())
+                        .setPositiveButton("닫기", null)))
                 .setPositiveButton("닫기", null));
     }
 
@@ -432,11 +481,33 @@ public final class MainActivity extends Activity {
 
     private AlertDialog show(AlertDialog.Builder builder) {
         AlertDialog alert = builder.show();
+        if (alert.getWindow() != null) {
+            alert.getWindow().setLayout(Math.min(getResources().getDisplayMetrics().widthPixels - dp(32), dp(600)), -2);
+        }
+        float scale = uiScale();
+        TextView title = alert.findViewById(getResources().getIdentifier("alertTitle", "id", "android"));
+        if (title != null) {
+            title.setTypeface(Typeface.create(font, 700, false));
+            title.setTextSize(22 * scale);
+            title.setSingleLine(false);
+        }
         TextView message = alert.findViewById(android.R.id.message);
-        if (message != null) message.setTypeface(font);
+        if (message != null) {
+            message.setTypeface(font);
+            message.setTextSize(18 * scale);
+            message.setTextColor(ink);
+        }
         for (int which : new int[]{-1, -2, -3}) {
             Button button = alert.getButton(which);
-            if (button != null) button.setTypeface(font);
+            if (button == null) continue;
+            button.setTypeface(Typeface.create(font, 650, false));
+            button.setAllCaps(false);
+            button.setTextSize(17 * scale);
+            button.setTextColor(which == -1 ? onStrong : ink);
+            button.setMinHeight(dp(56));
+            button.setMinimumHeight(dp(56));
+            button.setPadding(dp(16), 0, dp(16), 0);
+            button.setBackground(touchBackground(which == -1 ? strong : surface, 8));
         }
         return alert;
     }
@@ -470,7 +541,7 @@ public final class MainActivity extends Activity {
         button.setText(caption);
         button.setAllCaps(false);
         button.setTypeface(Typeface.create(font, 650, false));
-        button.setTextSize(15);
+        button.setTextSize(16 * uiScale());
         button.setTextColor(primary ? onStrong : ink);
         button.setMinHeight(dp(48));
         button.setMinimumWidth(dp(56));
@@ -507,14 +578,35 @@ public final class MainActivity extends Activity {
     private TextView label(String text, int size, int weight, int color) {
         TextView view = new TextView(this);
         view.setText(text);
-        view.setTextSize(size);
+        view.setTextSize(size * uiScale());
         view.setTypeface(Typeface.create(font, weight, false));
         view.setTextColor(color);
         return view;
     }
 
     private int dp(int amount) {
-        return Math.round(amount * getResources().getDisplayMetrics().density);
+        return Math.round(amount * getResources().getDisplayMetrics().density * uiScale());
+    }
+
+    private float uiScale() {
+        Configuration config = getResources().getConfiguration();
+        return Math.max(1f, Math.min(2.5f, Math.min(config.screenWidthDp, config.screenHeightDp) / 720f));
+    }
+
+    private void stack(LinearLayout parent, View child) {
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
+        params.topMargin = dp(8);
+        parent.addView(child, params);
+    }
+
+    private void step(EditText minutes, int delta) {
+        int current;
+        try {
+            current = Integer.parseInt(minutes.getText().toString());
+        } catch (NumberFormatException invalid) {
+            current = quote.stayMinutes();
+        }
+        minutes.setText(Integer.toString(Math.max(1, Math.min(360, current + delta))));
     }
 
     private static String meters(Integer mm) {

@@ -7,7 +7,7 @@ import java.util.Set;
 
 /** Owns visit lifetime; only confirm can cross the route-request boundary. */
 final class ParkingNavigation {
-    enum Status { IDLE, SIMULATED, ACCEPTED, REJECTED, STALE }
+    enum Status { IDLE, SIMULATED, PENDING, ACCEPTED, REJECTED, STALE }
     record Receipt(ParkingPlan.Lot lot, ParkingPlan.RouteRequest request, Status outcome) {
         // Retain the existing request/outcome value contract for historical receipts.
         // Facility membership is checked explicitly by identity, never Receipt.equals.
@@ -52,15 +52,25 @@ final class ParkingNavigation {
         this.port = port;
         this.changed = changed;
         port.setDestinationListener(this::receive);
+        port.setRouteResultListener(this::receiveRouteResult);
     }
     private void receive(NavigationPort.Destination destination) {
-        if (destination.echoedRequestId() != null && sent.contains(destination.echoedRequestId())) return;
+        if (destination != null && destination.echoedRequestId() != null
+                && sent.contains(destination.echoedRequestId())) return;
         excluded.clear();
         visit = destination;
         visitVersion++;
         invalidateSelections();
         status = Status.IDLE;
         lastRequest = null;
+        changed.run();
+    }
+
+    private void receiveRouteResult(long id, NavigationPort.Result result) {
+        if (id != requestId || status != Status.PENDING
+                || (result != NavigationPort.Result.ACCEPTED && result != NavigationPort.Result.REJECTED)) return;
+        status = statusOf(result);
+        lastRequest = new Receipt(lastRequest.lot(), lastRequest.request(), status);
         changed.run();
     }
     NavigationPort.Destination visit() { return visit; }
@@ -102,7 +112,8 @@ final class ParkingNavigation {
         return ParkingPlan.routeRequest(visit.name(), option).map(route -> new Selection(this, generation, option.lot(), route));
     }
     Status confirm(Selection selection) {
-        if (selection == null || selection.owner != this || selection.generation != generation || selection.consumed) return Status.STALE;
+        if (selection == null || selection.owner != this || selection.generation != generation
+                || selection.consumed || status == Status.PENDING) return Status.STALE;
         selection.consumed = true;
         long id = ++requestId;
         long requestedVisit = visitVersion;
@@ -113,8 +124,7 @@ final class ParkingNavigation {
         } catch (RuntimeException failure) {
             result = NavigationPort.Result.REJECTED;
         }
-        Status outcome = result == NavigationPort.Result.ACCEPTED ? Status.ACCEPTED
-                : result == NavigationPort.Result.SIMULATED ? Status.SIMULATED : Status.REJECTED;
+        Status outcome = statusOf(result);
         // Refresh expires selections, but cannot erase a sent request's result.
         // A new visit or a newer reentrant request owns subsequent presentation.
         if (visitVersion == requestedVisit && requestId == id) {
@@ -123,5 +133,15 @@ final class ParkingNavigation {
             changed.run();
         }
         return outcome;
+    }
+
+    private static Status statusOf(NavigationPort.Result result) {
+        if (result == null) return Status.REJECTED;
+        return switch (result) {
+            case ACCEPTED -> Status.ACCEPTED;
+            case PENDING -> Status.PENDING;
+            case SIMULATED -> Status.SIMULATED;
+            case REJECTED -> Status.REJECTED;
+        };
     }
 }

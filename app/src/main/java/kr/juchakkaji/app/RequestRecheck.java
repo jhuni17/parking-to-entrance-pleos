@@ -31,6 +31,7 @@ record RequestRecheck(ParkingNavigation.Receipt receipt, State state, String rea
     String outcomeText() {
         return switch (receipt.outcome()) {
             case SIMULATED -> "시연 요청 완료";
+            case PENDING -> "내비 응답 기다리는 중";
             case ACCEPTED -> "내비 요청 수락";
             case REJECTED -> "입구 경로 요청 실패";
             case STALE -> "만료된 선택";
