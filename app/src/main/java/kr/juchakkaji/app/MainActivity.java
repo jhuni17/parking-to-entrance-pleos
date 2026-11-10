@@ -25,9 +25,11 @@ import org.json.JSONException;
 
 import java.io.IOException;
 import java.text.NumberFormat;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -40,10 +42,12 @@ public final class MainActivity extends Activity {
     private final ExecutorService parkingReader = Executors.newSingleThreadExecutor();
     private final Handler parkingHandler = new Handler(Looper.getMainLooper());
     private final Runnable nextParkingRead = this::readPublicParking;
+    private final Runnable expireParkingVacancies = this::renderPublicParking;
     private SeoulParking.Area parkingArea;
     private int parkingGeneration;
     private boolean parkingActive;
     private boolean parkingLoaded;
+    private boolean parkingRefreshFailed;
     private List<SeoulParking.LotStatus> publicLots = List.of();
     private Option sincheonOption;
     private ParkingNavigation navigation;
@@ -130,6 +134,7 @@ public final class MainActivity extends Activity {
     protected void onStart() {
         super.onStart();
         parkingActive = true;
+        if (parkingArea != null) readPublicParking();
         pleosNavigation.start();
         totalHeight.start();
         vehicleState.activate();
@@ -214,7 +219,8 @@ public final class MainActivity extends Activity {
     @Override
     protected void onStop() {
         parkingActive = false;
-        syncPublicParking();
+        parkingHandler.removeCallbacksAndMessages(null);
+        parkingGeneration++;
         stopVehicleRead();
         super.onStop();
     }
@@ -268,10 +274,15 @@ public final class MainActivity extends Activity {
         list.removeAllViews();
         renderPublicParking();
         if (vehicleState.reading()) return;
+        boolean showTopCard = !options.isEmpty()
+                && (options.get(0).requestAvailability().available() || emulatorAlternative);
+        if (!showTopCard && parkingArea == SeoulParking.Area.COEX) {
+            stack(list, action("총높이 보완", false, this::showTotalHeight));
+        }
         for (int index = 0; index < options.size(); index++) {
             Option option = options.get(index);
             if (option.lot() == SincheonParking.LOT) continue;
-            if (index == 0 && (option.requestAvailability().available() || emulatorAlternative)) {
+            if (index == 0 && showTopCard) {
                 addRecommendation(option, explanation);
             }
             else addAlternative(option, explanation);
@@ -280,14 +291,15 @@ public final class MainActivity extends Activity {
 
     private void syncPublicParking() {
         NavigationPort.Destination visit = navigation.visit();
-        SeoulParking.Area area = parkingActive && visit != null ? visit.publicParkingArea() : null;
+        SeoulParking.Area area = visit == null ? null : visit.publicParkingArea();
         if (area == parkingArea) return;
         parkingHandler.removeCallbacks(nextParkingRead);
         parkingGeneration++;
         parkingArea = area;
         parkingLoaded = false;
+        parkingRefreshFailed = false;
         publicLots = List.of();
-        if (area != null) readPublicParking();
+        if (parkingActive && area != null) readPublicParking();
     }
 
     private void readPublicParking() {
@@ -299,12 +311,13 @@ public final class MainActivity extends Activity {
                 lots = SeoulParking.fetch(area);
             } catch (IOException | JSONException failure) {
                 Log.w("SeoulParking", "주차 데이터 조회 실패", failure);
-                lots = List.of();
+                lots = null;
             }
             List<SeoulParking.LotStatus> result = lots;
             parkingHandler.post(() -> {
                 if (generation != parkingGeneration || isDestroyed()) return;
-                publicLots = result;
+                parkingRefreshFailed = result == null;
+                if (!parkingRefreshFailed) publicLots = result;
                 parkingLoaded = true;
                 renderPublicParking();
                 parkingHandler.postDelayed(nextParkingRead, 60_000L);
@@ -313,9 +326,15 @@ public final class MainActivity extends Activity {
     }
 
     private void renderPublicParking() {
+        parkingHandler.removeCallbacks(expireParkingVacancies);
         parkingSection.removeAllViews();
         if (parkingArea == null) return;
         Instant now = Instant.now();
+        if (parkingActive) {
+            publicLots.stream().map(lot -> lot.vacancyExpiresAt(now)).filter(Objects::nonNull)
+                    .min(Instant::compareTo).ifPresent(expiry -> parkingHandler.postDelayed(
+                            expireParkingVacancies, Math.max(1L, Duration.between(now, expiry).toMillis())));
+        }
         SeoulParking.Comparison comparison = SeoulParking.compare(parkingArea, publicLots, now);
         boolean recommend = comparison.recommendNearby() && sincheonOption != null
                 && sincheonOption.requestAvailability().available();
@@ -331,6 +350,9 @@ public final class MainActivity extends Activity {
             parkingSection.addView(label(parkingLoaded ? "공영주차장 정보를 불러오지 못했어요" : "서울시 정보 확인 중",
                     16, 500, muted));
             return;
+        }
+        if (parkingRefreshFailed) {
+            parkingSection.addView(label("갱신 실패 · 마지막 확인 정보", 16, 500, muted));
         }
         if (comparison.destination() != null) {
             addPublicParkingRow(comparison.destination(), comparison.destinationCrowded() ? "목적지 · 혼잡" : "목적지 주차장", now);
@@ -433,6 +455,21 @@ public final class MainActivity extends Activity {
             TextView reason = label(explanation.cardHeadline(), 14, 500, muted);
             reason.setSingleLine(true);
             card.addView(reason);
+        }
+        if (parkingArea == SeoulParking.Area.COEX) {
+            LinearLayout height = compact ? column() : row();
+            String heightSummary = "내 차 " + meters(totalHeight.effectiveMm(vehicleState.vehicle()))
+                    + " / 입구 제한 " + meters(option.lot().heightLimitMm());
+            TextView condition = label(heightSummary, 17, 650, ink);
+            Button adjust = action("총높이 보완", false, this::showTotalHeight);
+            if (compact) {
+                height.addView(condition);
+                stack(height, adjust);
+            } else {
+                height.addView(condition, new LinearLayout.LayoutParams(0, -2, 1));
+                height.addView(adjust);
+            }
+            stack(card, height);
         }
         LinearLayout actions = compact ? column() : row();
         actions.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);

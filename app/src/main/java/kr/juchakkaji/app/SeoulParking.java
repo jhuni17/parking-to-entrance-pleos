@@ -66,10 +66,14 @@ final class SeoulParking {
         Integer available(Instant now) {
             if (capacity == null || capacity <= 0 || occupied == null || occupied < 0
                     || occupied > capacity || updated == null
-                    || updated.isBefore(now.minus(MAX_AGE)) || updated.isAfter(now.plusSeconds(30))) {
+                    || !now.isBefore(updated.plus(MAX_AGE)) || updated.isAfter(now.plusSeconds(30))) {
                 return null;
             }
             return capacity - occupied;
+        }
+
+        Instant vacancyExpiresAt(Instant now) {
+            return available(now) == null ? null : updated.plus(MAX_AGE);
         }
 
         boolean crowded(Instant now) {

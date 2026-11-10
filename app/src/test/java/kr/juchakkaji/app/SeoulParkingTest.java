@@ -49,6 +49,22 @@ public class SeoulParkingTest {
                 new SeoulParking.Rate(30, 2000, 10, 500).label());
     }
 
+    @Test
+    public void vacancyExpiresAtFiveMinutesAndTheLastKnownRateRemainsUsable() {
+        var rate = new SeoulParking.Rate(5, 440, 5, 440);
+        var destination = lot("1277145", 357, 347, NOW, false);
+        var nearby = new SeoulParking.LotStatus("173646", "신천유수지", 192, 175, NOW, rate, true);
+        var lots = List.of(destination, nearby);
+        Instant expiry = NOW.plusSeconds(300);
+        assertEquals(expiry, nearby.vacancyExpiresAt(expiry.minusMillis(1)));
+        assertTrue(SeoulParking.compare(SeoulParking.Area.JAMSIL, lots, expiry.minusMillis(1)).recommendNearby());
+        var afterExpiry = SeoulParking.compare(SeoulParking.Area.JAMSIL, lots, expiry);
+        assertNull(afterExpiry.nearby().available(expiry));
+        assertNull(afterExpiry.nearby().vacancyExpiresAt(expiry));
+        assertFalse(afterExpiry.recommendNearby());
+        assertEquals("5분 440원", afterExpiry.nearby().rate().label());
+    }
+
     private static SeoulParking.LotStatus lot(String code, int capacity, Integer occupied,
                                               Instant updated, boolean open24Hours) {
         return new SeoulParking.LotStatus(code, code, capacity, occupied, updated, null, open24Hours);
