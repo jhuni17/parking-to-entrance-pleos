@@ -21,9 +21,9 @@ Pleos 기본 내비에서 목적지를 설정하고 앱을 열면 NaviHelper로 
 
 ## 제출용 APK
 
-[jhuni17_주차까지_release.apk](apk/jhuni17_%EC%A3%BC%EC%B0%A8%EA%B9%8C%EC%A7%80_release.apk)는 서명된 Pleos용 릴리스 0.1.0이다.
+[최재훈_주차까지_release.apk](apk/%EC%B5%9C%EC%9E%AC%ED%9B%88_%EC%A3%BC%EC%B0%A8%EA%B9%8C%EC%A7%80_release.apk)는 서명된 Pleos용 릴리스 0.1.0이다.
 
-1. Pleos Connect Emulator 2.1.0 (Android API 34)에서 `adb install "apk/jhuni17_주차까지_release.apk"`로 설치한다. 예전 디버그 APK가 다른 키로 서명되어 있으면 테스트 기기에서 기존 주차까지를 제거한 뒤 설치한다.
+1. Pleos Connect Emulator 2.1.0 (Android API 34)에서 `adb install "apk/최재훈_주차까지_release.apk"`로 설치한다. 예전 디버그 APK가 다른 키로 서명되어 있으면 테스트 기기에서 기존 주차까지를 제거한 뒤 설치한다.
 2. 순정 Pleos 내비에서 **코엑스**로 안내를 시작하고 주차까지를 연다. **상세 → 차량·출처 정보**를 열고 아래로 스크롤해 **총높이 보완**에서 2,350mm를 적용하면 코엑스 높이 초과와 대안 A가 표시된다. 다음 시험 전에는 **보완값 삭제**로 기본 차량 높이를 복원한다.
 3. 순정 내비에서 **잠실역 2호선**으로 안내를 시작하고 주차까지를 열면 잠실역과 신천유수지의 실시간 요금·빈자리를 확인할 수 있다. 추천 여부는 조회 시점의 혼잡도에 따라 바뀐다. 신천유수지에 **입구 안내**가 표시되면 선택 후 **내비 안내**를 눌러 순정 내비 목적지를 주차장 입구로 바꾼다.
 
